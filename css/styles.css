@@ -1,0 +1,718 @@
+/* ============================================================
+   Fairway — design tokens
+   Palette pulled from the course itself, not a generic UI kit:
+   turf green, scorecard cream, bunker sand, sky, flag colors.
+   ============================================================ */
+
+:root {
+  /* color */
+  --color-fairway: #1f4d3a;
+  --color-fairway-bright: #3e8f63;
+  --color-cream: #f6f4ec;
+  --color-surface: #ffffff;
+  --color-ink: #1b211c;
+  --color-ink-muted: #5b665f;
+  --color-line: #e2ddcd;
+  --color-sand: #c9a96b;
+  --color-sky: #4f7f92;
+  --color-bogey: #a8532f;
+  --color-double: #7c3f2a;
+
+  /* type */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+
+  /* layout */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --shadow-card: 0 1px 2px rgba(27, 33, 28, 0.04), 0 4px 16px rgba(27, 33, 28, 0.06);
+  --tab-bar-height: 64px;
+  --header-height: 56px;
+
+  /* motion */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme='dark'] {
+  --color-fairway: #4fa578;
+  --color-fairway-bright: #5fc48d;
+  --color-cream: #0f1712;
+  --color-surface: #182720;
+  --color-ink: #ecebe0;
+  --color-ink-muted: #93a196;
+  --color-line: #28362e;
+  --color-sand: #d3b783;
+  --color-sky: #7fb0c2;
+  --color-bogey: #d97a52;
+  --color-double: #e2967a;
+}
+
+/* ============================================================
+   Reset & base
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s var(--ease-standard), color 0.2s var(--ease-standard);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-fairway-bright);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ============================================================
+   App shell
+   ============================================================ */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--color-cream);
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: color-mix(in srgb, var(--color-cream) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-fairway);
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: var(--color-surface);
+  border-radius: 999px;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.15s var(--ease-standard);
+}
+
+.icon-btn:active {
+  transform: scale(0.92);
+}
+
+.view-outlet {
+  flex: 1;
+  padding: 20px 20px calc(var(--tab-bar-height) + 20px);
+}
+
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  height: var(--tab-bar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--color-line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tab-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s var(--ease-standard);
+}
+
+.tab-link.is-active {
+  color: var(--color-fairway);
+}
+
+.tab-link-primary {
+  background: var(--color-fairway);
+  color: #fff;
+  padding: 10px 18px;
+}
+
+.tab-link-primary.is-active {
+  color: #fff;
+}
+
+/* ============================================================
+   Panels & generic layout
+   ============================================================ */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-header h2 {
+  font-size: 22px;
+}
+
+.empty-state {
+  color: var(--color-ink-muted);
+  text-align: center;
+  padding: 48px 12px;
+  line-height: 1.6;
+}
+
+.empty-state a {
+  color: var(--color-fairway);
+  font-weight: 600;
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 18px;
+  border-radius: var(--radius-md);
+  border: none;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform 0.12s var(--ease-standard), opacity 0.12s var(--ease-standard);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: var(--color-fairway);
+  color: #fff;
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-card);
+}
+
+.btn-secondary[disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* ============================================================
+   Forms
+   ============================================================ */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+}
+
+.field input,
+.field select {
+  font: inherit;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+.field-group-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+}
+
+.par-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.par-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  box-shadow: var(--shadow-card);
+}
+
+.par-field span {
+  font-size: 11px;
+  color: var(--color-ink-muted);
+  font-weight: 700;
+}
+
+.par-field input {
+  width: 100%;
+  text-align: center;
+  border: none;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 4px 0;
+}
+
+/* ============================================================
+   Resume card
+   ============================================================ */
+
+.resume-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  background: var(--color-fairway);
+  color: #fff;
+  box-shadow: var(--shadow-card);
+}
+
+.resume-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+}
+
+.resume-course {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.resume-cta {
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* ============================================================
+   Rounds list (home) & courses list
+   ============================================================ */
+
+.scorecard-list,
+.plain-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.score-row,
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.12s var(--ease-standard);
+}
+
+.score-row:active {
+  transform: scale(0.98);
+}
+
+.score-row-main,
+.score-row-total {
+  display: flex;
+  flex-direction: column;
+}
+
+.score-row-course {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.score-row-date,
+.list-row-meta {
+  font-size: 12px;
+  color: var(--color-ink-muted);
+}
+
+.score-row-total {
+  align-items: flex-end;
+}
+
+.score-strokes {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.score-topar {
+  font-size: 12px;
+  color: var(--color-ink-muted);
+}
+
+/* ============================================================
+   Play screen — the core scoring interaction
+   ============================================================ */
+
+.play-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.play-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.play-course {
+  font-weight: 700;
+}
+
+.play-progress {
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+
+.hole-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.hole-card-top {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.hole-number {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.hole-par {
+  font-size: 13px;
+  color: var(--color-ink-muted);
+  align-self: center;
+}
+
+/* --- The signature: pencil-and-paper scorecard convention,
+   digitized. A birdie or better is circled; a bogey or worse
+   is boxed; par sits plain. --- */
+
+.stroke-display {
+  width: 120px;
+  height: 120px;
+  display: grid;
+  place-items: center;
+  transition: transform 0.18s var(--ease-standard);
+}
+
+.stroke-number {
+  font-family: var(--font-mono);
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.score-par {
+  color: var(--color-ink);
+}
+
+.score-birdie,
+.score-eagle {
+  border-radius: 999px;
+  border: 3px solid var(--color-fairway-bright);
+}
+
+.score-eagle {
+  border-width: 4px;
+  box-shadow: inset 0 0 0 3px var(--color-cream), inset 0 0 0 6px var(--color-fairway-bright);
+}
+
+.score-birdie .stroke-number,
+.score-eagle .stroke-number {
+  color: var(--color-fairway-bright);
+}
+
+.score-bogey,
+.score-double {
+  border-radius: var(--radius-sm);
+  border: 3px solid var(--color-bogey);
+}
+
+.score-double {
+  border-width: 4px;
+  box-shadow: inset 0 0 0 3px var(--color-cream), inset 0 0 0 6px var(--color-bogey);
+}
+
+.score-bogey .stroke-number {
+  color: var(--color-bogey);
+}
+
+.score-double .stroke-number {
+  color: var(--color-double);
+}
+
+.stepper-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.stepper-row-secondary {
+  padding-top: 12px;
+  border-top: 1px solid var(--color-line);
+}
+
+.stepper-label {
+  font-size: 14px;
+  color: var(--color-ink-muted);
+  min-width: 90px;
+  text-align: center;
+}
+
+.stepper-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  border: none;
+  background: var(--color-cream);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-fairway);
+  cursor: pointer;
+  transition: transform 0.12s var(--ease-standard);
+}
+
+.stepper-btn:active {
+  transform: scale(0.9);
+}
+
+.stepper-btn-sm {
+  width: 38px;
+  height: 38px;
+  font-size: 18px;
+}
+
+.play-nav {
+  display: flex;
+  gap: 12px;
+}
+
+.play-nav .btn {
+  flex: 1;
+}
+
+/* ============================================================
+   Summary screen
+   ============================================================ */
+
+.summary {
+  gap: 24px;
+}
+
+.summary-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 28px 0;
+}
+
+.summary-course {
+  font-size: 13px;
+  color: var(--color-ink-muted);
+  font-weight: 600;
+}
+
+.summary-total {
+  font-family: var(--font-mono);
+  font-size: 56px;
+  font-weight: 600;
+  color: var(--color-fairway);
+  line-height: 1.1;
+}
+
+.summary-topar {
+  font-size: 14px;
+  color: var(--color-ink-muted);
+}
+
+.summary-stats {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--color-ink-muted);
+}
+
+.scorecard-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.grid-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 10px 0;
+  box-shadow: var(--shadow-card);
+}
+
+.grid-hole {
+  font-size: 10px;
+  color: var(--color-ink-muted);
+  font-weight: 700;
+}
+
+.grid-score {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 16px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+}
+
+.grid-score.score-birdie,
+.grid-score.score-eagle {
+  border-radius: 999px;
+  border: 2px solid var(--color-fairway-bright);
+  color: var(--color-fairway-bright);
+}
+
+.grid-score.score-bogey,
+.grid-score.score-double {
+  border-radius: 4px;
+  border: 2px solid var(--color-bogey);
+  color: var(--color-bogey);
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Fairway — Golf Scorecard</title>
+  <meta name="description" content="A minimalist, free golf scorecard and stat tracker." />
+  <meta name="theme-color" content="#1F4D3A" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <a class="wordmark" href="#/">Fairway</a>
+      <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme" type="button">☾</button>
+    </header>
+
+    <main id="view-outlet" class="view-outlet" aria-live="polite"></main>
+
+    <nav class="tab-bar">
+      <a href="#/" class="tab-link" data-route="/">Home</a>
+      <a href="#/round/new" class="tab-link tab-link-primary" data-route="/round/new">New round</a>
+      <a href="#/courses" class="tab-link" data-route="/courses">Courses</a>
+    </nav>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
