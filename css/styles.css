@@ -1,22 +1,25 @@
 /* ============================================================
    Fairway — design tokens
-   Palette pulled from the course itself, not a generic UI kit:
-   turf green, scorecard cream, bunker sand, sky, flag colors.
+   Base is now a neutral warm-gray / charcoal (not green-tinted) —
+   fairway green is reserved for accents: buttons, badges, the
+   hero tile. Sand, sky, and bogey/double still come from the
+   course itself, not a generic UI kit.
    ============================================================ */
 
 :root {
-  /* color */
-  --color-fairway: #1f4d3a;
-  --color-fairway-bright: #3e8f63;
-  --color-cream: #f6f4ec;
+  /* color — light */
+  --color-bg: #f5f5f3;
   --color-surface: #ffffff;
-  --color-ink: #1b211c;
-  --color-ink-muted: #5b665f;
-  --color-line: #e2ddcd;
-  --color-sand: #c9a96b;
-  --color-sky: #4f7f92;
-  --color-bogey: #a8532f;
-  --color-double: #7c3f2a;
+  --color-ink: #1a1c1b;
+  --color-ink-muted: #63695f;
+  --color-line: #e3e1da;
+
+  --color-fairway: #1f4d3a;
+  --color-fairway-bright: #2e6b4c;
+  --color-sand: #b99a63;
+  --color-sky: #46707f;
+  --color-bogey: #9c4b2c;
+  --color-double: #74331f;
 
   /* type */
   --font-display: 'Fraunces', Georgia, serif;
@@ -27,8 +30,7 @@
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 22px;
-  --shadow-card: 0 1px 2px rgba(27, 33, 28, 0.04), 0 4px 16px rgba(27, 33, 28, 0.06);
-  --tab-bar-height: 64px;
+  --shadow-card: 0 1px 2px rgba(20, 20, 18, 0.04), 0 4px 16px rgba(20, 20, 18, 0.06);
   --header-height: 56px;
 
   /* motion */
@@ -36,17 +38,20 @@
 }
 
 [data-theme='dark'] {
-  --color-fairway: #4fa578;
-  --color-fairway-bright: #5fc48d;
-  --color-cream: #0f1712;
-  --color-surface: #182720;
-  --color-ink: #ecebe0;
-  --color-ink-muted: #93a196;
-  --color-line: #28362e;
-  --color-sand: #d3b783;
-  --color-sky: #7fb0c2;
-  --color-bogey: #d97a52;
-  --color-double: #e2967a;
+  /* color — dark: true neutral charcoal, not a green wash. Green comes
+     back only where it's an intentional accent (hero tile, buttons, badges). */
+  --color-bg: #121314;
+  --color-surface: #1b1c1e;
+  --color-ink: #ededea;
+  --color-ink-muted: #93958f;
+  --color-line: #2a2b2d;
+
+  --color-fairway: #3f7c5a;
+  --color-fairway-bright: #57b085;
+  --color-sand: #c7a876;
+  --color-sky: #6d97a6;
+  --color-bogey: #c97a54;
+  --color-double: #de9877;
 }
 
 /* ============================================================
@@ -66,7 +71,7 @@ body {
 
 body {
   margin: 0;
-  background: var(--color-cream);
+  background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-body);
   font-size: 16px;
@@ -92,8 +97,7 @@ ul {
 }
 
 h1,
-h2,
-h3 {
+h2 {
   font-family: var(--font-display);
   font-weight: 600;
   margin: 0;
@@ -114,7 +118,10 @@ h3 {
 }
 
 /* ============================================================
-   App shell
+   App shell & header
+   No bottom nav — the header is the only persistent chrome, and
+   its content is swapped per-route by js/header.js: wordmark +
+   theme toggle on home, back + title everywhere else.
    ============================================================ */
 
 .app-shell {
@@ -123,19 +130,19 @@ h3 {
   min-height: 100vh;
   max-width: 480px;
   margin: 0 auto;
-  background: var(--color-cream);
+  background: var(--color-bg);
 }
 
 .app-header {
   position: sticky;
   top: 0;
   z-index: 10;
-  height: var(--header-height);
+  min-height: var(--header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  background: color-mix(in srgb, var(--color-cream) 88%, transparent);
+  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--color-line);
 }
@@ -145,7 +152,16 @@ h3 {
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--color-fairway);
+  color: var(--color-fairway-bright);
+}
+
+.header-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.header-spacer {
+  width: 36px;
 }
 
 .icon-btn {
@@ -166,49 +182,14 @@ h3 {
   transform: scale(0.92);
 }
 
+.back-btn {
+  font-size: 22px;
+  line-height: 1;
+}
+
 .view-outlet {
   flex: 1;
-  padding: 20px 20px calc(var(--tab-bar-height) + 20px);
-}
-
-.tab-bar {
-  position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 480px;
-  height: var(--tab-bar-height);
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid var(--color-line);
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.tab-link {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-ink-muted);
-  padding: 8px 14px;
-  border-radius: var(--radius-sm);
-  transition: color 0.15s var(--ease-standard);
-}
-
-.tab-link.is-active {
-  color: var(--color-fairway);
-}
-
-.tab-link-primary {
-  background: var(--color-fairway);
-  color: #fff;
-  padding: 10px 18px;
-}
-
-.tab-link-primary.is-active {
-  color: #fff;
+  padding: 20px 20px 40px;
 }
 
 /* ============================================================
@@ -228,7 +209,7 @@ h3 {
 }
 
 .panel-header h2 {
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .empty-state {
@@ -239,7 +220,7 @@ h3 {
 }
 
 .empty-state a {
-  color: var(--color-fairway);
+  color: var(--color-fairway-bright);
   font-weight: 600;
 }
 
@@ -270,6 +251,10 @@ h3 {
   color: #fff;
 }
 
+[data-theme='dark'] .btn-primary {
+  color: #0d120f;
+}
+
 .btn-secondary {
   background: var(--color-surface);
   color: var(--color-ink);
@@ -283,6 +268,137 @@ h3 {
 
 .btn-block {
   width: 100%;
+}
+
+/* ============================================================
+   Home screen — tile stack
+   ============================================================ */
+
+.tile-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tile {
+  display: flex;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.12s var(--ease-standard);
+  overflow: hidden;
+}
+
+.tile:active {
+  transform: scale(0.98);
+}
+
+/* --- Tile 1: hero round tile. Its dark gradient + illustration is the
+   one deliberate place green shows up as more than a small accent — a
+   stand-in for a real course photo/map, which arrives with Stage 2. --- */
+
+.tile--hero {
+  position: relative;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
+  min-height: 200px;
+  padding: 20px;
+  color: #f4f3ec;
+  background: linear-gradient(160deg, #1c3d2e 0%, #14251c 55%, #0e1712 100%);
+}
+
+.tile--hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  background-image: radial-gradient(circle at 78% 22%, rgba(87, 176, 133, 0.35), transparent 45%),
+    repeating-linear-gradient(120deg, rgba(255, 255, 255, 0.035) 0px, rgba(255, 255, 255, 0.035) 2px, transparent 2px, transparent 26px);
+}
+
+.tile--hero-empty {
+  background: linear-gradient(160deg, #2a2c28 0%, #17181a 100%);
+}
+
+.hero-eyebrow {
+  position: relative;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+}
+
+.hero-course {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  margin: 2px 0 6px;
+}
+
+.hero-cta {
+  position: relative;
+  font-size: 13px;
+  font-weight: 700;
+  color: #8fd6b0;
+}
+
+/* --- Tile 2: stats summary --- */
+
+.tile--stats {
+  background: var(--color-surface);
+  padding: 18px;
+}
+
+.mini-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.mini-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.mini-stat-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 20px;
+}
+
+.mini-stat-label {
+  font-size: 11px;
+  color: var(--color-ink-muted);
+  text-align: center;
+}
+
+.stats-tile-empty {
+  color: var(--color-ink-muted);
+  font-size: 14px;
+  padding: 8px 2px;
+}
+
+/* --- Tile 3: settings --- */
+
+.tile--settings {
+  background: var(--color-surface);
+  padding: 18px 20px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-tile-label {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.settings-tile-chevron {
+  color: var(--color-ink-muted);
+  font-size: 18px;
 }
 
 /* ============================================================
@@ -310,6 +426,7 @@ h3 {
 .field input,
 .field select {
   font: inherit;
+  font-size: 16px; /* prevents iOS auto-zoom on focus */
   padding: 12px 14px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-line);
@@ -323,74 +440,49 @@ h3 {
   color: var(--color-ink-muted);
 }
 
-.par-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
+/* --- Par entry: a vertical list of stepper rows, one big touch target
+   per hole, instead of a cramped grid of tiny number inputs. --- */
 
-.par-field {
+.par-list {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  max-height: 46vh;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.par-row {
+  display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
   background: var(--color-surface);
   border-radius: var(--radius-sm);
-  padding: 8px;
+  padding: 10px 12px;
   box-shadow: var(--shadow-card);
 }
 
-.par-field span {
-  font-size: 11px;
-  color: var(--color-ink-muted);
-  font-weight: 700;
+.par-row-hole {
+  font-size: 14px;
+  font-weight: 600;
 }
 
-.par-field input {
-  width: 100%;
-  text-align: center;
-  border: none;
+.par-row-stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.par-row-value {
   font-family: var(--font-mono);
   font-weight: 600;
-  padding: 4px 0;
+  font-size: 16px;
+  width: 18px;
+  text-align: center;
 }
 
 /* ============================================================
-   Resume card
-   ============================================================ */
-
-.resume-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 16px 18px;
-  border-radius: var(--radius-lg);
-  background: var(--color-fairway);
-  color: #fff;
-  box-shadow: var(--shadow-card);
-}
-
-.resume-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.75;
-}
-
-.resume-course {
-  font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: 600;
-}
-
-.resume-cta {
-  font-size: 13px;
-  font-weight: 700;
-  margin-top: 4px;
-}
-
-/* ============================================================
-   Rounds list (home) & courses list
+   Rounds list (used on the Stats screen)
    ============================================================ */
 
 .scorecard-list,
@@ -502,9 +594,8 @@ h3 {
   align-self: center;
 }
 
-/* --- The signature: pencil-and-paper scorecard convention,
-   digitized. A birdie or better is circled; a bogey or worse
-   is boxed; par sits plain. --- */
+/* The scorecard signature: a birdie or better is circled, a bogey or
+   worse is boxed — same convention golfers already use with a pencil. */
 
 .stroke-display {
   width: 120px;
@@ -533,7 +624,7 @@ h3 {
 
 .score-eagle {
   border-width: 4px;
-  box-shadow: inset 0 0 0 3px var(--color-cream), inset 0 0 0 6px var(--color-fairway-bright);
+  box-shadow: inset 0 0 0 3px var(--color-bg), inset 0 0 0 6px var(--color-fairway-bright);
 }
 
 .score-birdie .stroke-number,
@@ -549,7 +640,7 @@ h3 {
 
 .score-double {
   border-width: 4px;
-  box-shadow: inset 0 0 0 3px var(--color-cream), inset 0 0 0 6px var(--color-bogey);
+  box-shadow: inset 0 0 0 3px var(--color-bg), inset 0 0 0 6px var(--color-bogey);
 }
 
 .score-bogey .stroke-number {
@@ -585,10 +676,10 @@ h3 {
   height: 52px;
   border-radius: 999px;
   border: none;
-  background: var(--color-cream);
+  background: var(--color-bg);
   font-size: 24px;
   font-weight: 700;
-  color: var(--color-fairway);
+  color: var(--color-fairway-bright);
   cursor: pointer;
   transition: transform 0.12s var(--ease-standard);
 }
@@ -598,8 +689,8 @@ h3 {
 }
 
 .stepper-btn-sm {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   font-size: 18px;
 }
 
@@ -638,7 +729,7 @@ h3 {
   font-family: var(--font-mono);
   font-size: 56px;
   font-weight: 600;
-  color: var(--color-fairway);
+  color: var(--color-fairway-bright);
   line-height: 1.1;
 }
 
@@ -714,5 +805,117 @@ h3 {
 .grid-score.score-double {
   border-radius: 4px;
   border: 2px solid var(--color-bogey);
+  color: var(--color-bogey);
+}
+
+/* ============================================================
+   Stats screen
+   ============================================================ */
+
+.stat-block-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.stat-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 16px;
+}
+
+.stat-block-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 24px;
+  color: var(--color-fairway-bright);
+}
+
+.stat-block-label {
+  font-size: 12px;
+  color: var(--color-ink-muted);
+}
+
+.stats-note {
+  font-size: 13px;
+  color: var(--color-ink-muted);
+  line-height: 1.6;
+}
+
+/* ============================================================
+   Settings screen
+   ============================================================ */
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-group-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ink-muted);
+  padding-left: 2px;
+}
+
+.segmented {
+  display: flex;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 4px;
+  gap: 4px;
+}
+
+.segment-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 9px 0;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  transition: background-color 0.15s var(--ease-standard), color 0.15s var(--ease-standard);
+}
+
+.segment-btn.is-active {
+  background: var(--color-fairway);
+  color: #fff;
+}
+
+[data-theme='dark'] .segment-btn.is-active {
+  color: #0d120f;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.settings-row-chevron {
+  color: var(--color-ink-muted);
+}
+
+.settings-row-danger {
   color: var(--color-bogey);
 }

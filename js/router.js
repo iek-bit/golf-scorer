@@ -3,15 +3,25 @@
 // Small hash-based router. Hash routing (as opposed to the History API)
 // means every route works as a static file on GitHub Pages with zero
 // server-side rewrite rules — important since Stage 1 has no backend at all.
+//
+// Each route carries { title, backTo } meta so header.js can render the
+// right chrome without every view needing to know about the header.
+
+import { renderHeader } from './header.js';
 
 const routes = [];
 
-export function route(pattern, handler) {
-  routes.push({ pattern, handler });
+/**
+ * @param {string} pattern e.g. '/round/:id/play'
+ * @param {{title?: string, backTo?: string}} meta backTo omitted = home header (wordmark + theme toggle)
+ * @param {(outlet: HTMLElement, params: object) => void|Promise<void>} handler
+ */
+export function route(pattern, meta, handler) {
+  routes.push({ pattern, meta, handler });
 }
 
 function matchRoute(path) {
-  for (const { pattern, handler } of routes) {
+  for (const { pattern, meta, handler } of routes) {
     const paramNames = [];
     const regexStr = pattern.replace(/:[^/]+/g, (m) => {
       paramNames.push(m.slice(1));
@@ -21,17 +31,10 @@ function matchRoute(path) {
     if (match) {
       const params = {};
       paramNames.forEach((name, i) => (params[name] = match[i + 1]));
-      return { handler, params };
+      return { handler, params, meta };
     }
   }
   return null;
-}
-
-function updateActiveTab(path) {
-  document.querySelectorAll('.tab-link').forEach((link) => {
-    const isActive = link.dataset.route === path || (link.dataset.route !== '/' && path.startsWith(link.dataset.route));
-    link.classList.toggle('is-active', isActive);
-  });
 }
 
 export async function renderRoute() {
@@ -40,12 +43,13 @@ export async function renderRoute() {
   const outlet = document.getElementById('view-outlet');
 
   if (!matched) {
+    renderHeader({ backTo: '/' });
     outlet.innerHTML = `<p class="empty-state">Nothing here. <a href="#/">Back to home</a></p>`;
     return;
   }
 
+  renderHeader(matched.meta || {});
   await matched.handler(outlet, matched.params);
-  updateActiveTab(path);
   outlet.scrollTo(0, 0);
 }
 

@@ -1,68 +1,132 @@
 import { storage } from '../storage.js';
+import { computeStats } from '../stats.js';
+import { tile } from '../components/tile.js';
 
 export async function renderHome(outlet) {
   const [rounds, courses] = await Promise.all([storage.getRounds(), storage.getCourses()]);
 
-  const inProgress = rounds.find((r) => !r.completedAt);
-  const recent = rounds
-    .filter((r) => r.completedAt)
-    .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
-    .slice(0, 8);
-
   outlet.innerHTML = `
-    <section class="panel">
-      ${inProgress ? renderResumeCard(inProgress, courses) : ''}
-      <div class="panel-header">
-        <h2>Rounds</h2>
-        <a class="btn btn-primary" href="#/round/new">New round</a>
-      </div>
-      ${recent.length ? renderRoundsList(recent, courses) : renderEmptyRounds(courses)}
-    </section>
+    <div class="tile-stack">
+      ${renderRoundTile(rounds, courses)}
+      ${renderStatsTile(rounds, courses)}
+      ${renderSettingsTile()}
+    </div>
   `;
 }
 
-function renderResumeCard(round, courses) {
-  const course = courses.find((c) => c.id === round.courseId);
-  return `
-    <a class="resume-card" href="#/round/${round.id}/play">
-      <span class="resume-label">Round in progress</span>
-      <span class="resume-course">${escapeHtml(course ? course.name : 'Unknown course')}</span>
-      <span class="resume-cta">Continue →</span>
-    </a>
-  `;
-}
+// --- Tile 1: start a new round, or resume one already in progress.
+// Background art is a stand-in for a real course photo/map — that arrives
+// with Stage 2's GPS course data. "Nearest course" is likewise a stand-in
+// for now: without course locations yet, we use the most recently played
+// course instead, which is the best available proxy until GPS lands.
 
-function renderEmptyRounds(courses) {
-  if (!courses.length) {
-    return `<p class="empty-state">Add a course, then start your first round.<br /><a href="#/courses/new">Add a course →</a></p>`;
+function renderRoundTile(rounds, courses) {
+  const inProgress = rounds.find((r) => !r.completedAt);
+
+  if (inProgress) {
+    const course = courses.find((c) => c.id === inProgress.courseId);
+    return tile({
+      href: `#/round/${inProgress.id}/play`,
+      extraClass: 'tile--hero',
+      ariaLabel: 'Continue round in progress',
+      innerHtml: `
+        <span class="hero-eyebrow">Round in progress</span>
+        <span class="hero-course">${escapeHtml(course ? course.name : 'Unknown course')}</span>
+        <span class="hero-cta">Continue round →</span>
+      `,
+    });
   }
-  return `<p class="empty-state">No rounds yet. Ready when you are.</p>`;
+
+  if (!courses.length) {
+    return tile({
+      href: '#/courses/new',
+      extraClass: 'tile--hero tile--hero-empty',
+      ariaLabel: 'Add a course to get started',
+      innerHtml: `
+        <span class="hero-eyebrow">Get started</span>
+        <span class="hero-course">Add your first course</span>
+        <span class="hero-cta">Add course →</span>
+      `,
+    });
+  }
+
+  const defaultCourse = getDefaultCourse(rounds, courses);
+  return tile({
+    href: '#/round/new',
+    extraClass: 'tile--hero',
+    ariaLabel: `Start a new round at ${defaultCourse.name}`,
+    innerHtml: `
+      <span class="hero-eyebrow">Start round</span>
+      <span class="hero-course">${escapeHtml(defaultCourse.name)}</span>
+      <span class="hero-cta">New round →</span>
+    `,
+  });
 }
 
-function renderRoundsList(rounds, courses) {
-  return `<ul class="scorecard-list">${rounds.map((r) => renderRoundRow(r, courses)).join('')}</ul>`;
+// Stand-in for GPS-based "nearest course" until Stage 2. Most recently
+// played course, falling back to the first course a user created.
+export function getDefaultCourse(rounds, courses) {
+  if (!courses.length) return null;
+  const sorted = [...rounds].sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
+  for (const round of sorted) {
+    const course = courses.find((c) => c.id === round.courseId);
+    if (course) return course;
+  }
+  return courses[0];
 }
 
-function renderRoundRow(round, courses) {
-  const course = courses.find((c) => c.id === round.courseId);
-  const totals = totalForRound(round, course);
-  const toParLabel = toParText(totals.toPar);
-  const date = new Date(round.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  return `
-    <li>
-      <a class="score-row" href="#/round/${round.id}/summary">
-        <span class="score-row-main">
-          <span class="score-row-course">${escapeHtml(course ? course.name : 'Unknown course')}</span>
-          <span class="score-row-date">${date}</span>
-        </span>
-        <span class="score-row-total">
-          <span class="score-strokes">${totals.strokes}</span>
-          <span class="score-topar">${toParLabel}</span>
-        </span>
-      </a>
-    </li>
-  `;
+// --- Tile 2: a handful of mini stats; tapping opens the full stats screen.
+
+function renderStatsTile(rounds, courses) {
+  const stats = computeStats(rounds, courses);
+
+  if (!stats.roundsPlayed) {
+    return tile({
+      href: '#/stats',
+      extraClass: 'tile--stats',
+      ariaLabel: 'Stats',
+      innerHtml: `<span class="stats-tile-empty">Finish a round to see stats here</span>`,
+    });
+  }
+
+  const chips = [
+    { value: String(stats.roundsPlayed), label: 'Rounds' },
+    { value: toParText(round1(stats.avgToPar)), label: 'Avg to par' },
+  ];
+  if (stats.best) chips.push({ value: toParText(stats.best.toPar), label: 'Best round' });
+  if (stats.avgPuttsPerHole != null) chips.push({ value: String(round1(stats.avgPuttsPerHole)), label: 'Putts/hole' });
+
+  return tile({
+    href: '#/stats',
+    extraClass: 'tile--stats',
+    ariaLabel: 'View full stats',
+    innerHtml: `
+      <div class="mini-stat-grid">
+        ${chips
+          .slice(0, 4)
+          .map((c) => `<div class="mini-stat"><span class="mini-stat-value">${c.value}</span><span class="mini-stat-label">${c.label}</span></div>`)
+          .join('')}
+      </div>
+    `,
+  });
 }
+
+// --- Tile 3: settings.
+
+function renderSettingsTile() {
+  return tile({
+    href: '#/settings',
+    extraClass: 'tile--settings',
+    ariaLabel: 'Settings',
+    innerHtml: `<span class="settings-tile-label">Settings</span><span class="settings-tile-chevron">›</span>`,
+  });
+}
+
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+
+// --- Shared helpers used by other views (courses, round, summary, stats).
 
 export function totalForRound(round, course) {
   const played = round.holeScores.filter((h) => h.strokes != null);

@@ -1,9 +1,8 @@
 // theme.js
 //
-// Default is the device's light/dark setting. The toggle button lets the
-// user override that; the override is remembered (localStorage via
-// storage.js) until they tap the toggle again. There is no third "custom
-// palette" mode by design — see the project plan.
+// Default is the device's light/dark setting. Either the header toggle (home
+// screen) or the Settings screen can override it; the override is persisted
+// via storage.js until changed again or reset to "System".
 
 import { storage } from './storage.js';
 
@@ -30,7 +29,6 @@ function updateToggleIcon(mode) {
 export async function initTheme() {
   const saved = await storage.getThemePreference();
   applyTheme(saved);
-  updateToggleIcon(saved);
 
   // Keep following the system if the user hasn't overridden it.
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', async () => {
@@ -48,4 +46,23 @@ export async function toggleTheme() {
   await storage.saveThemePreference(next);
   applyTheme(next);
   updateToggleIcon(next);
+}
+
+// Sets an explicit mode ('light' | 'dark') or null to follow the system —
+// used by the Settings screen's three-way control.
+export async function setThemeMode(mode) {
+  await storage.saveThemePreference(mode);
+  applyTheme(mode);
+  updateToggleIcon(mode);
+}
+
+export async function getThemeMode() {
+  return storage.getThemePreference();
+}
+
+// Call after any header re-render (a fresh #theme-toggle button has no
+// icon/label yet) to bring it in sync with the current preference.
+export async function syncThemeToggle() {
+  const saved = await storage.getThemePreference();
+  updateToggleIcon(saved);
 }

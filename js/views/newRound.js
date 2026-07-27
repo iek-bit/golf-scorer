@@ -1,9 +1,9 @@
 import { storage } from '../storage.js';
 import { makeRound } from '../models.js';
-import { escapeHtml } from './home.js';
+import { escapeHtml, getDefaultCourse } from './home.js';
 
 export async function renderNewRound(outlet) {
-  const courses = await storage.getCourses();
+  const [courses, rounds] = await Promise.all([storage.getCourses(), storage.getRounds()]);
 
   if (!courses.length) {
     outlet.innerHTML = `
@@ -14,14 +14,16 @@ export async function renderNewRound(outlet) {
     return;
   }
 
+  const defaultCourse = getDefaultCourse(rounds, courses);
+  const orderedCourses = [defaultCourse, ...courses.filter((c) => c.id !== defaultCourse.id)];
+
   outlet.innerHTML = `
     <section class="panel">
-      <div class="panel-header"><h2>New round</h2></div>
       <form id="round-form" class="form">
         <label class="field">
           <span>Course</span>
           <select name="courseId">
-            ${courses.map((c) => `<option value="${c.id}">${escapeHtml(c.name)} (${c.numHoles} holes)</option>`).join('')}
+            ${orderedCourses.map((c) => `<option value="${c.id}">${escapeHtml(c.name)} (${c.numHoles} holes)</option>`).join('')}
           </select>
         </label>
         <label class="field">
