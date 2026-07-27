@@ -485,6 +485,27 @@ h2 {
    Rounds list (used on the Stats screen)
    ============================================================ */
 
+/* Map related small tweaks */
+#map, #play-map {
+  border-radius: 10px;
+  border: 1px solid var(--color-line);
+}
+
+.btn.active {
+  background: var(--color-fairway);
+  color: #fff;
+}
+
+.field-note {
+  color: var(--color-ink-muted);
+  font-size: 13px;
+}
+
+.leaflet-container {
+  border-radius: 8px;
+}
+
+
 .scorecard-list,
 .plain-list {
   display: flex;

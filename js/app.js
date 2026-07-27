@@ -1,7 +1,7 @@
 import { initRouter, route } from './router.js';
 import { initTheme } from './theme.js';
 import { renderHome } from './views/home.js';
-import { renderCourses, renderNewCourse } from './views/courses.js';
+import { renderCourses, renderNewCourse, renderEditCourse } from './views/courses.js';
 import { renderNewRound } from './views/newRound.js';
 import { renderPlay } from './views/play.js';
 import { renderSummary } from './views/summary.js';
@@ -18,6 +18,7 @@ route('/stats', { title: 'Stats', backTo: '/' }, renderStats);
 route('/settings', { title: 'Settings', backTo: '/' }, renderSettings);
 route('/courses', { title: 'Courses', backTo: '/settings' }, renderCourses);
 route('/courses/new', { title: 'Add course', backTo: '/courses' }, renderNewCourse);
+route('/courses/:id/edit', { title: 'Edit course', backTo: '/courses' }, renderEditCourse);
 route('/round/new', { title: 'New round', backTo: '/' }, renderNewRound);
 route('/round/:id/play', { title: 'Round', backTo: '/' }, renderPlay);
 route('/round/:id/summary', { title: 'Summary', backTo: '/' }, renderSummary);
