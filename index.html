@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Fairway — Golf Scorecard</title>
+  <meta name="description" content="A minimalist, free golf scorecard and stat tracker." />
+  <meta name="theme-color" content="#121314" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Leaflet: the map library behind course search results and the
+       shot-tracking map on the play screen. Loaded globally (window.L)
+       since this project has no bundler — see README for why. -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <!--
+      The header's content depends on the screen: the home screen gets the
+      wordmark + theme toggle, every other screen gets a back button + title.
+      js/header.js fills this in per-route — see js/router.js.
+    -->
+    <header id="app-header" class="app-header"></header>
+
+    <main id="view-outlet" class="view-outlet" aria-live="polite"></main>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
