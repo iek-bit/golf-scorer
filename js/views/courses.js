@@ -1,6 +1,7 @@
 import { storage } from '../storage.js';
 import { makeCourse } from '../models.js';
 import { escapeHtml } from './home.js';
+import { getCurrentPosition } from '../geo.js';
 
 const MIN_PAR = 3;
 const MAX_PAR = 6;
@@ -57,7 +58,7 @@ export async function renderNewCourse(outlet) {
 
   const form = document.getElementById('course-form');
   const parList = document.getElementById('par-list');
-  const numHolesSelect = form.numHoles;
+  const numHolesSelect = form.querySelector('select[name="numHoles"]');
 
   function renderParRows() {
     const n = Number(numHolesSelect.value);
@@ -104,7 +105,24 @@ export async function renderNewCourse(outlet) {
     });
     const name = String(data.get('name') || '').trim();
     if (!name) return;
-    const course = makeCourse({ name, numHoles, holes });
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving…';
+
+    // Best-effort: assumes you're adding this course while at or near it,
+    // so it can show up as a "nearest course" suggestion later. If location
+    // isn't available or is denied, the course still saves fine — it just
+    // won't be suggested by proximity until edited (not yet supported).
+    let courseLocation = null;
+    try {
+      const pos = await getCurrentPosition();
+      courseLocation = { lat: pos.lat, lng: pos.lng };
+    } catch {
+      // no location — fine, continue without it
+    }
+
+    const course = makeCourse({ name, numHoles, holes, location: courseLocation });
     await storage.saveCourse(course);
     location.hash = '#/courses';
   });

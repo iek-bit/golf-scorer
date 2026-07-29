@@ -15,10 +15,12 @@ export async function renderNewRound(outlet) {
   let selectedCourse = null;
   let apiResults = [];
   let resultsLabel = ''; // e.g. "Near you" or 'Results for "pebble"'
-  let searchStatus = 'idle'; // idle | loading | error
-  let locationStatus = 'idle'; // idle | loading | error
+  let searchStatus = 'idle'; // idle | loading | empty
+  let locationStatus = 'loading'; // loading | idle | error — starts loading, see loadNearby() below
+  let requestId = 0; // guards against a slow response clobbering a newer one
 
   render();
+  loadNearby(); // auto-run on open — no button tap needed
 
   function render() {
     step === 'holes' ? renderHolesStep() : renderCourseStep();
@@ -31,10 +33,7 @@ export async function renderNewRound(outlet) {
       <section class="panel">
         <input type="text" id="course-search" class="search-input" placeholder="Search courses by name" autocomplete="off" />
 
-        <button type="button" class="btn btn-secondary btn-block" id="use-location-btn">
-          ${locationStatus === 'loading' ? 'Finding your location…' : '📍 Find courses near me'}
-        </button>
-        ${locationStatus === 'error' ? `<p class="field-hint field-hint-error">Couldn't get your location — you can still search by name.</p>` : ''}
+        ${locationStatus === 'error' ? `<p class="field-hint">Couldn't get your location — <button type="button" class="text-btn" id="retry-location-btn">try again</button>, or search by name.</p>` : ''}
 
         <div id="search-results">${renderApiResults()}</div>
 
@@ -45,11 +44,15 @@ export async function renderNewRound(outlet) {
     `;
 
     document.getElementById('course-search').addEventListener('input', onSearchInput);
-    document.getElementById('use-location-btn').addEventListener('click', onUseLocation);
+    const retryBtn = document.getElementById('retry-location-btn');
+    if (retryBtn) retryBtn.addEventListener('click', loadNearby);
     attachCourseCardHandlers();
   }
 
   function renderApiResults() {
+    if (locationStatus === 'loading' && searchStatus !== 'loading' && !apiResults.length) {
+      return `<p class="field-hint">Finding courses near you…</p>`;
+    }
     if (searchStatus === 'loading') return `<p class="field-hint">Searching…</p>`;
     if (searchStatus === 'empty') return `<p class="field-hint">No matches — try a different search, or add it manually below.</p>`;
     if (!apiResults.length) return '';
@@ -108,9 +111,11 @@ export async function renderNewRound(outlet) {
       return;
     }
     searchDebounce = setTimeout(async () => {
+      const myRequest = ++requestId;
       searchStatus = 'loading';
       document.getElementById('search-results').innerHTML = renderApiResults();
       const results = await searchCourses({ q });
+      if (myRequest !== requestId) return; // a newer search/location request superseded this one
       apiResults = results;
       resultsLabel = `Results for "${q}"`;
       searchStatus = results.length ? 'idle' : 'empty';
@@ -119,17 +124,20 @@ export async function renderNewRound(outlet) {
     }, 400);
   }
 
-  async function onUseLocation() {
+  async function loadNearby() {
+    const myRequest = ++requestId;
     locationStatus = 'loading';
     render();
     try {
       const pos = await getCurrentPosition();
       const results = await searchCourses({ lat: pos.lat, lng: pos.lng, radiusMi: 25 });
+      if (myRequest !== requestId) return; // the user searched by name before this resolved
       apiResults = results;
       resultsLabel = 'Near you';
       searchStatus = results.length ? 'idle' : 'empty';
       locationStatus = 'idle';
     } catch {
+      if (myRequest !== requestId) return;
       locationStatus = 'error';
     }
     render();

@@ -1,8 +1,10 @@
 import { storage } from '../storage.js';
 import { escapeHtml } from './home.js';
 import { getCurrentPosition, haversineMeters, metersToYards } from '../geo.js';
+import { SATELLITE_TILE_URL, SATELLITE_ATTRIBUTION } from '../mapConfig.js';
 
-const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+const POSITION_ONLY_ZOOM = 17; // moderate — "see the full hole," not zoomed all the way in
+const PAR_OPTIONS = [3, 4, 5, 6];
 
 export async function renderPlay(outlet, params) {
   const round = await storage.getRound(params.id);
@@ -22,6 +24,7 @@ export async function renderPlay(outlet, params) {
   let lastKnownPosition = null;
   let rangefinderAttemptedForHole = null; // holeNumber we've already silently tried once
   let trackShotError = null;
+  let editingPar = false;
 
   render();
 
@@ -36,32 +39,27 @@ export async function renderPlay(outlet, params) {
 
     outlet.innerHTML = `
       <section class="play-screen">
-        <div class="play-header">
-          <span class="play-course">${escapeHtml(course.name)}</span>
-          <span class="play-progress">Hole ${currentIndex + 1} of ${round.holeScores.length}</span>
-        </div>
+        ${renderScorecardStrip()}
 
-        <div class="hole-card">
-          <div class="hole-card-top">
-            <span class="hole-number">Hole ${holeDef.number}</span>
-            <span class="hole-par">Par ${holeDef.par}</span>
+        <div class="hole-card hole-card--map">
+          <div class="map-area">
+            <div id="shot-map" class="shot-map shot-map--large"></div>
+            ${holeDef.green ? `<button type="button" class="rangefinder-overlay" id="rangefinder-btn">${renderRangefinderContent(holeDef, lastKnownPosition)}</button>` : ''}
+            <button type="button" class="track-shot-fab" id="track-shot-btn" aria-label="Track shot">🎯</button>
           </div>
+          ${trackShotError ? `<p class="field-hint field-hint-error">${escapeHtml(trackShotError)}</p>` : ''}
 
-          ${isUnmapped ? `<span class="first-time-badge">First time here — shots you track will map this hole</span>` : ''}
-
-          ${holeDef.green ? renderRangefinderRow(holeDef, lastKnownPosition) : ''}
+          <div class="hole-meta-row">
+            <span class="hole-number">Hole ${holeDef.number}</span>
+            ${renderParControl(holeDef)}
+            ${isUnmapped ? `<span class="first-time-badge">Mapping this hole</span>` : ''}
+          </div>
 
           <div class="stroke-display ${scoreClass(holeScore.strokes, holeDef.par)}">
             <span class="stroke-number">${holeScore.strokes}</span>
           </div>
 
-          <button type="button" class="btn btn-primary btn-block track-shot-btn" id="track-shot-btn">
-            🎯 Track shot
-          </button>
-          ${trackShotError ? `<p class="field-hint field-hint-error">${escapeHtml(trackShotError)}</p>` : ''}
           ${holeScore.shots.length ? `<button type="button" class="text-btn" id="undo-shot-btn">Undo last shot</button>` : ''}
-
-          <div id="shot-map" class="shot-map"></div>
 
           <div class="stepper-row stepper-row-secondary">
             <button type="button" class="stepper-btn stepper-btn-sm" id="strokes-minus" aria-label="Decrease strokes">−</button>
@@ -98,9 +96,97 @@ export async function renderPlay(outlet, params) {
     document.getElementById('putts-plus').addEventListener('click', () => adjust('putts', 1, 0));
     document.getElementById('prev-hole').addEventListener('click', () => go(-1));
     document.getElementById('next-hole').addEventListener('click', finishOrNext);
+    attachScorecardStripHandlers();
+    attachParControlHandlers(holeDef);
 
     maybeAutoFetchRangefinder(holeDef, holeScore);
   }
+
+  // ---- Scorecard strip ----
+
+  function renderScorecardStrip() {
+    const total = round.holeScores.reduce((sum, h) => sum + (h.strokes || 0), 0);
+    return `
+      <div class="scorecard-strip">
+        <div class="scorecard-strip-scroll">
+          ${round.holeScores
+            .map((h, i) => {
+              const holeDef = course.holes.find((hd) => hd.number === h.holeNumber);
+              const played = h.strokes != null && i !== currentIndex ? h.strokes : null;
+              const cls = played != null && holeDef ? scoreClass(h.strokes, holeDef.par) : '';
+              return `
+              <button type="button" class="strip-cell ${i === currentIndex ? 'is-current' : ''}" data-index="${i}">
+                <span class="strip-hole">${h.holeNumber}</span>
+                <span class="strip-score ${cls}">${played != null ? h.strokes : '–'}</span>
+              </button>
+            `;
+            })
+            .join('')}
+        </div>
+        <div class="strip-total">
+          <span class="strip-hole">Tot</span>
+          <span class="strip-score">${total || '–'}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function attachScorecardStripHandlers() {
+    document.querySelectorAll('.strip-cell').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        currentIndex = Number(btn.dataset.index);
+        rangefinderAttemptedForHole = null;
+        editingPar = false;
+        render();
+      });
+    });
+  }
+
+  // ---- Par confirmation (API-sourced courses only need this) ----
+
+  function renderParControl(holeDef) {
+    if (holeDef.parConfirmed) {
+      return `<span class="hole-par">Par ${holeDef.par}</span>`;
+    }
+    if (editingPar) {
+      return `
+        <span class="par-confirm-row">
+          <span class="par-confirm-label">Par?</span>
+          ${PAR_OPTIONS.map((p) => `<button type="button" class="par-confirm-btn" data-par="${p}">${p}</button>`).join('')}
+        </span>
+      `;
+    }
+    return `<button type="button" class="hole-par hole-par-unconfirmed" id="edit-par-btn">Par ${holeDef.par} · confirm</button>`;
+  }
+
+  function attachParControlHandlers(holeDef) {
+    const editBtn = document.getElementById('edit-par-btn');
+    if (editBtn) {
+      editBtn.addEventListener('click', () => {
+        editingPar = true;
+        render();
+      });
+    }
+    document.querySelectorAll('.par-confirm-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const par = Number(btn.dataset.par);
+        holeDef.par = par;
+        holeDef.parConfirmed = true;
+        editingPar = false;
+        // Only reset strokes if the player hasn't started this hole yet —
+        // otherwise a mid-hole par correction would wipe their count.
+        const holeScore = round.holeScores[currentIndex];
+        if (holeScore.shots.length === 0 && holeScore.putts === 0) {
+          holeScore.strokes = par;
+        }
+        await storage.saveCourse(course);
+        await storage.saveRound(round);
+        render();
+      });
+    });
+  }
+
+  // ---- Shot tracking ----
 
   async function adjust(field, delta, min) {
     const holeScore = round.holeScores[currentIndex];
@@ -148,9 +234,6 @@ export async function renderPlay(outlet, params) {
     render();
   }
 
-  // Quietly fetch a position for the rangefinder if permission is already
-  // granted — never prompts on its own. Only tries once per hole; after
-  // that, the rangefinder button itself lets the user refresh manually.
   async function maybeAutoFetchRangefinder(holeDef, holeScore) {
     if (!holeDef.green) return;
     if (rangefinderAttemptedForHole === holeScore.holeNumber) return;
@@ -162,13 +245,14 @@ export async function renderPlay(outlet, params) {
       lastKnownPosition = await getCurrentPosition();
       render();
     } catch {
-      // Silent — the manual "Get distance" button is still there.
+      // Silent — the rangefinder badge itself is still tappable to retry.
     }
   }
 
   function go(delta) {
     currentIndex = Math.min(round.holeScores.length - 1, Math.max(0, currentIndex + delta));
     rangefinderAttemptedForHole = null;
+    editingPar = false;
     render();
   }
 
@@ -177,6 +261,7 @@ export async function renderPlay(outlet, params) {
     if (currentIndex < round.holeScores.length - 1) {
       currentIndex += 1;
       rangefinderAttemptedForHole = null;
+      editingPar = false;
       render();
     } else {
       round.completedAt = new Date().toISOString();
@@ -220,17 +305,10 @@ export function computeTeeGreenFromShots(shots) {
   };
 }
 
-function renderRangefinderRow(holeDef, position) {
-  if (!position) {
-    return `<button type="button" class="rangefinder rangefinder-prompt" id="rangefinder-btn">📍 Get distance to green</button>`;
-  }
+function renderRangefinderContent(holeDef, position) {
+  if (!position) return `<span class="rangefinder-prompt">📍 Get distance</span>`;
   const yards = Math.round(metersToYards(haversineMeters(position, holeDef.green)));
-  return `
-    <button type="button" class="rangefinder" id="rangefinder-btn">
-      <span class="rangefinder-value">${yards}</span>
-      <span class="rangefinder-label">yds to green</span>
-    </button>
-  `;
+  return `<span class="rangefinder-value">${yards}</span><span class="rangefinder-label">yds</span>`;
 }
 
 function renderShotMap(holeScore, holeDef, position) {
@@ -246,35 +324,45 @@ function renderShotMap(holeScore, holeDef, position) {
     ...holeScore.shots.map((s) => ({ lat: s.lat, lng: s.lng })),
     ...(holeDef.tee ? [holeDef.tee] : []),
     ...(holeDef.green ? [holeDef.green] : []),
-    ...(position ? [position] : []),
   ];
 
-  if (!points.length) {
+  const referencePoint = holeDef.green || points[0] || position;
+  if (!referencePoint) {
     container.innerHTML = `<p class="shot-map-placeholder">Track a shot to start mapping this hole.</p>`;
     return;
   }
 
-  const center = holeDef.green || points[0];
-  const map = L.map(container, { zoomControl: false, attributionControl: false }).setView([center.lat, center.lng], 17);
-  L.tileLayer(TILE_URL, { maxZoom: 19 }).addTo(map);
+  const map = L.map(container, { zoomControl: false, attributionControl: false }).setView(
+    [referencePoint.lat, referencePoint.lng],
+    points.length ? 17 : POSITION_ONLY_ZOOM
+  );
+  L.tileLayer(SATELLITE_TILE_URL, { maxZoom: 19, attribution: SATELLITE_ATTRIBUTION }).addTo(map);
 
-  if (holeDef.tee) {
-    L.circleMarker([holeDef.tee.lat, holeDef.tee.lng], { radius: 7, color: '#3f7c5a', fillColor: '#3f7c5a', fillOpacity: 1 })
-      .addTo(map)
-      .bindTooltip('Tee');
-  }
-  if (holeDef.green) {
-    L.circleMarker([holeDef.green.lat, holeDef.green.lng], { radius: 7, color: '#9c4b2c', fillColor: '#9c4b2c', fillOpacity: 1 })
-      .addTo(map)
-      .bindTooltip('Green');
-  }
+  if (holeDef.tee) L.marker([holeDef.tee.lat, holeDef.tee.lng], { icon: markerIcon('tee', 'T') }).addTo(map).bindTooltip('Tee');
+  if (holeDef.green) L.marker([holeDef.green.lat, holeDef.green.lng], { icon: markerIcon('green', '⛳') }).addTo(map).bindTooltip('Green');
   holeScore.shots.forEach((s, i) => {
-    L.marker([s.lat, s.lng]).addTo(map).bindTooltip(`Shot ${i + 1}`);
+    L.marker([s.lat, s.lng], { icon: markerIcon('shot', String(i + 1)) }).addTo(map).bindTooltip(`Shot ${i + 1}`);
   });
+  if (position) L.marker([position.lat, position.lng], { icon: markerIcon('you', '') }).addTo(map);
 
-  if (points.length > 1) {
-    map.fitBounds(L.latLngBounds(points.map((p) => [p.lat, p.lng])), { padding: [24, 24] });
+  const fitPoints = [...points, ...(position ? [position] : [])];
+  if (fitPoints.length > 1) {
+    map.fitBounds(L.latLngBounds(fitPoints.map((p) => [p.lat, p.lng])), { padding: [28, 28] });
+  } else if (!points.length && position) {
+    map.setView([position.lat, position.lng], POSITION_ONLY_ZOOM);
   }
+}
+
+// Small themed div-icons instead of Leaflet's default pin image, so the
+// map matches the rest of the app instead of looking like a generic
+// mapping-library demo.
+function markerIcon(kind, label) {
+  return L.divIcon({
+    className: `map-marker map-marker--${kind}`,
+    html: `<span>${label}</span>`,
+    iconSize: kind === 'you' ? [14, 14] : [26, 26],
+    iconAnchor: kind === 'you' ? [7, 7] : [13, 13],
+  });
 }
 
 // Mirrors the pencil-and-paper convention: circle a birdie or better,

@@ -23,6 +23,7 @@ js/storage.js        The ONLY file that touches localStorage — see below
 js/theme.js          Light/dark handling (system default + manual override, or explicit choice)
 js/stats.js          Aggregate stats computed from local round history
 js/geo.js            Geolocation wrapper + distance math (rangefinder, nearest-course)
+js/mapConfig.js      Shared map tile URLs (satellite + street) used by home.js and play.js
 js/api/opengolfapi.js  Read-only wrapper around OpenGolfAPI's keyless course search — see below
 js/components/tile.js  Shared wrapper for the home screen's tappable tiles
 js/views/*.js        One file per screen (home, courses, new round, play, summary, stats, settings)
@@ -33,11 +34,14 @@ js/views/*.js        One file per screen (home, courses, new round, play, summar
 There's no bottom tab bar. The home screen is three stacked tiles:
 
 1. **Start/continue round** — a hero tile. If a round is in progress it
-   shows "Continue round." Otherwise it shows the most recently played
-   course, silently upgrading to the true GPS-nearest course if location
-   permission was already granted (it never prompts on its own from the
-   home screen — see `maybeUpgradeToNearest` in `js/views/home.js`). The
-   tile's background art is still a stand-in for a real course photo.
+   shows "Continue round" with that course's satellite image behind the
+   text. Otherwise it shows the most recently played course immediately
+   (no waiting), then actively resolves the true GPS-nearest course in the
+   background — this *can* prompt for location permission, since finding
+   the nearest course is the point of the button (see
+   `resolveNearestAndUpdate` in `js/views/home.js`). It never does this
+   while a round is in progress. The satellite image comes from the same
+   non-interactive map used elsewhere — see "Course search" below.
 2. **Stats** — a few mini stats (rounds played, avg to par, best round,
    avg putts). Tapping it opens the full Stats screen, which also lists
    every completed round (tap one to see its scorecard again).
@@ -65,11 +69,15 @@ redesign:
 
 ## Course search — and why it's scoped the way it is
 
-Starting a round searches [OpenGolfAPI](https://opengolfapi.org)'s course
-list (16,800+ US courses, name/location/par) or uses your location to find
-nearby ones. Worth knowing:
+Starting a round automatically searches nearby using your location as soon
+as the screen opens (no button tap needed) — [OpenGolfAPI](https://opengolfapi.org)'s
+course list (16,800+ US courses, name/location/par), or the search box to
+find one by name. "Add a course manually" is the fallback, not the
+default, and manually-added courses now capture a location too (your
+position when you save it), so they can show up as "nearest" just like
+API-sourced ones. Worth knowing:
 
-- We call exactly **one** endpoint: their plain, keyless `GET
+- We call exactly **one** OpenGolfAPI endpoint: their plain, keyless `GET
   /v1/courses/search`. Nothing else — see the comment at the top of
   `js/api/opengolfapi.js`.
 - Their platform bundles a lot more than a course database (an email-hash-
@@ -81,8 +89,21 @@ nearby ones. Worth knowing:
   only coarse OSM-derived shapes are. That's *why* the app doesn't try to
   pull hole geometry from them at all; see the next section.
 - If this endpoint ever disappears or changes shape, every call fails soft
-  (empty results) — "Add a course manually" (Settings → Manage courses)
-  still works as a complete fallback, same as it did in Stage 1.
+  (empty results) — "Add a course manually" still works as a complete
+  fallback, same as it did in Stage 1.
+- Satellite imagery (the hero tile background, the play-screen map) comes
+  from Esri World Imagery — free, keyless tiles, no billing account
+  required (unlike Google Maps — see `js/mapConfig.js`).
+
+## Par, when OpenGolfAPI doesn't have it
+
+Per-hole par isn't reliably available for free (see above), so API-sourced
+holes start at a placeholder par of 4 with `parConfirmed: false`. The play
+screen shows that as a tappable "Par 4 · confirm" badge instead of a plain
+label; picking the real par (3/4/5/6) saves it onto the course record —
+same "confirmed once, remembered forever" pattern as tee/green mapping
+below. Manually-added courses skip this entirely; typing a par in counts
+as confirming it.
 
 ## Shot tracking & how a course gets mapped
 
@@ -92,18 +113,27 @@ precision, and a full drawing tool is a lot of upfront tedium before a
 course is even playable. So instead: **a course maps itself the first time
 someone plays it.**
 
-- On the play screen, **Track shot** captures your current GPS position,
-  appends it to that hole's `shots` list, and counts it as a stroke. A
-  manual +/− next to it still works with no location attached, for when
-  GPS isn't available or wanted.
+- The play screen's map is the current hole rendered on Esri satellite
+  imagery. Once tee and green are both known, it fits the view to show the
+  whole hole; before that, it centers on your current position at a
+  moderate zoom (not tight — "see the hole," not "see your feet").
+  Tee/green/shots use small themed markers (`.map-marker--*` in
+  `styles.css`) instead of Leaflet's default pin image.
+- **Track shot** — the circular button that overlaps the bottom edge of
+  the map — captures your current GPS position, appends it to that hole's
+  `shots` list, and counts it as a stroke. A manual +/− below still works
+  with no location attached, for when GPS isn't available or wanted.
+- A compact scorecard strip runs across the top of the screen — every hole
+  in the round, tap any one to jump straight to it, current hole
+  highlighted, running total at the end.
 - When you move past a hole (Next hole / Finish round) and that hole has no
   saved tee/green yet, the **first** tracked shot becomes the tee and the
   **last** becomes the green — saved onto the *course* record, not the
   round, so it's there for every future round on that course and is never
   overwritten once set. See `mapHoleFromShots()` / `computeTeeGreenFromShots()`
   in `js/views/play.js`.
-- A hole not yet mapped shows a small "First time here" badge so it's clear
-  what's happening.
+- A hole not yet mapped shows a small "Mapping this hole" badge next to its
+  par, so it's clear what's happening.
 - This is a single point per green for now (not the separate front/center/
   back edges the plan describes) — that needs either several rounds' worth
   of data to average out, or a dedicated one-time calibration step, and
@@ -111,11 +141,11 @@ someone plays it.**
 
 ## Rangefinder
 
-Once a hole has a saved green, the play screen shows a live distance to it
-(pulling your position the same way — silently if location permission is
-already granted, otherwise via a tap). It's a single "yards to green"
-number for now, not separate front/center/back distances, for the same
-reason noted above.
+Once a hole has a saved green, a small floating badge in the top corner of
+the map shows a live distance to it (pulling your position the same way —
+silently if location permission is already granted, otherwise via a tap
+on the badge itself). It's a single "yards to green" number for now, not
+separate front/center/back distances, for the same reason noted above.
 
 ## How scoring works
 
@@ -152,6 +182,8 @@ Not yet handled (by design, deferred to later stages):
 - No editing a shot's location by dragging its map marker (only undo-last).
 - No hazard/landing-type polygons (sand/fairway/rough) — points only so far.
 - Green geometry is a single point, not separate front/center/back edges.
+- Editing a course's basic details (name, hole count) after creation isn't
+  built yet — only par-per-hole is editable, in place, while playing.
 - No PWA manifest / service worker / offline caching yet — that's Stage 3.
 
 ## Running it locally
@@ -193,20 +225,21 @@ This one really needs a phone with location on — desktop geolocation is
 usually too imprecise to be meaningful, and the map/rangefinder need real
 coordinates to show anything useful.
 
-1. Tap the home screen's top tile → search for a real course near you (or
-   tap "Find courses near me" and allow location).
+1. Tap the home screen's top tile — it should prompt for location and
+   then go straight to a "Near you" list of real nearby courses (search by
+   name also works; "add manually" is there if a course isn't listed).
 2. Pick a course, choose holes to play, and start the round.
-3. On hole 1, tap **Track shot** at your actual position for each stroke —
-   watch the strokes count and the mini map update. (First time playing
-   this course/hole, so no rangefinder yet — nothing to range to.)
-4. Tap **Next hole**. Check Settings → Manage courses (or re-open this
-   same hole another time) — hole 1 should now show a mapped tee and
-   green from what you just tracked.
-5. If you play that hole again later (new round, same course), you should
-   see the rangefinder ("X yds to green") appear once your location
-   resolves, using the green you mapped the first time.
-6. Back on the home screen, if you allowed location, the top tile should
-   eventually reflect the true nearest course rather than just "most
-   recently played" — refresh to see it resolve.
+3. On hole 1, if it's an API-sourced course, you should see a tappable
+   "Par 4 · confirm" badge — tap it and pick the real par.
+4. Tap the circular **Track shot** button (overlapping the bottom of the
+   map) at your actual position for each stroke — watch the strokes count,
+   the scorecard strip, and the map markers update. (First time playing
+   this hole, so no rangefinder badge yet — nothing to range to.)
+5. Tap **Next hole**. Play that same hole again later (new round, same
+   course) and you should see a "yds to green" badge appear in the corner
+   of the map, and the map should already be framed around the hole you
+   mapped.
+6. Back on the home screen, the top tile should show your real nearest
+   course with its satellite image behind the text.
 7. Everything from Stage 1 still applies: stats, settings, theme, and
    resuming a round after a refresh.

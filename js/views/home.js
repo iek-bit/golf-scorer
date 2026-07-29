@@ -3,109 +3,73 @@ import { computeStats } from '../stats.js';
 import { tile } from '../components/tile.js';
 import { searchCourses } from '../api/opengolfapi.js';
 import { getCurrentPosition } from '../geo.js';
+import { SATELLITE_TILE_URL, SATELLITE_ATTRIBUTION } from '../mapConfig.js';
 
 export async function renderHome(outlet) {
   const [rounds, courses] = await Promise.all([storage.getRounds(), storage.getCourses()]);
+  const heroState = computeHeroState(rounds, courses);
 
   outlet.innerHTML = `
     <div class="tile-stack">
-      <div id="round-tile-slot">${renderRoundTile(rounds, courses)}</div>
+      <div id="round-tile-slot">${renderRoundTile(heroState)}</div>
       ${renderStatsTile(rounds, courses)}
       ${renderSettingsTile()}
     </div>
   `;
 
-  maybeUpgradeToNearest(rounds, courses);
-}
+  mountHeroMap(heroState.course?.location || null);
 
-// If geolocation permission has already been granted (we never prompt for
-// it here — that only happens when the user taps something that needs
-// it), quietly swap the hero tile for the true GPS-nearest course. Any
-// failure just leaves the "most recently played" fallback tile in place.
-async function maybeUpgradeToNearest(rounds, courses) {
-  if (rounds.some((r) => !r.completedAt)) return; // a round is in progress — nothing to upgrade
-  if (!('permissions' in navigator) || !('geolocation' in navigator)) return;
-
-  try {
-    const status = await navigator.permissions.query({ name: 'geolocation' });
-    if (status.state !== 'granted') return;
-
-    const pos = await getCurrentPosition();
-    const [nearest] = await searchCourses({ lat: pos.lat, lng: pos.lng, radiusMi: 25, limit: 1 });
-    if (!nearest) return;
-
-    const known = courses.find((c) => c.externalId === nearest.externalId);
-    const slot = document.getElementById('round-tile-slot');
-    if (!slot) return; // user navigated away before this resolved
-
-    slot.innerHTML = tile({
-      href: '#/round/new',
-      extraClass: 'tile--hero',
-      ariaLabel: `Start a new round at ${nearest.name}, the nearest course`,
-      innerHtml: `
-        <span class="hero-eyebrow">Nearest course</span>
-        <span class="hero-course">${escapeHtml(known ? known.name : nearest.name)}</span>
-        <span class="hero-cta">New round →</span>
-      `,
-    });
-  } catch {
-    // Silent — the fallback tile already rendered.
-  }
+  // Actively resolve the true GPS-nearest course (this can prompt for
+  // location permission — that's intentional here, since finding the
+  // nearest course is the whole point of the button). Never runs while a
+  // round is in progress; "Continue round" always wins.
+  if (heroState.mode === 'start') resolveNearestAndUpdate();
 }
 
 // --- Tile 1: start a new round, or resume one already in progress.
-// Shows the most recently played course by default; maybeUpgradeToNearest
-// (above) silently swaps this for the true GPS-nearest course when
-// location permission is already granted. Background art is still a
-// stand-in for a real course photo — that needs per-course photos, which
-// aren't part of this pass.
 
-function renderRoundTile(rounds, courses) {
+function computeHeroState(rounds, courses) {
   const inProgress = rounds.find((r) => !r.completedAt);
-
   if (inProgress) {
-    const course = courses.find((c) => c.id === inProgress.courseId);
+    return { mode: 'continue', course: courses.find((c) => c.id === inProgress.courseId) || null, roundId: inProgress.id };
+  }
+  if (courses.length) {
+    return { mode: 'start', course: getDefaultCourse(rounds, courses), label: 'Start round' };
+  }
+  return { mode: 'start', course: null, label: 'Start round' };
+}
+
+function renderRoundTile(state) {
+  if (state.mode === 'continue') {
     return tile({
-      href: `#/round/${inProgress.id}/play`,
+      href: `#/round/${state.roundId}/play`,
       extraClass: 'tile--hero',
       ariaLabel: 'Continue round in progress',
       innerHtml: `
+        <div id="hero-tile-map" class="tile-map"></div>
         <span class="hero-eyebrow">Round in progress</span>
-        <span class="hero-course">${escapeHtml(course ? course.name : 'Unknown course')}</span>
+        <span class="hero-course">${escapeHtml(state.course ? state.course.name : 'Unknown course')}</span>
         <span class="hero-cta">Continue round →</span>
       `,
     });
   }
 
-  if (!courses.length) {
-    return tile({
-      href: '#/courses/new',
-      extraClass: 'tile--hero tile--hero-empty',
-      ariaLabel: 'Add a course to get started',
-      innerHtml: `
-        <span class="hero-eyebrow">Get started</span>
-        <span class="hero-course">Add your first course</span>
-        <span class="hero-cta">Add course →</span>
-      `,
-    });
-  }
-
-  const defaultCourse = getDefaultCourse(rounds, courses);
   return tile({
     href: '#/round/new',
-    extraClass: 'tile--hero',
-    ariaLabel: `Start a new round at ${defaultCourse.name}`,
+    extraClass: `tile--hero ${state.course ? '' : 'tile--hero-empty'}`,
+    ariaLabel: state.course ? `Start a new round at ${state.course.name}` : 'Find a course to play',
     innerHtml: `
+      <div id="hero-tile-map" class="tile-map"></div>
       <span class="hero-eyebrow">Start round</span>
-      <span class="hero-course">${escapeHtml(defaultCourse.name)}</span>
+      <span class="hero-course">${escapeHtml(state.course ? state.course.name : 'Find a course')}</span>
       <span class="hero-cta">New round →</span>
     `,
   });
 }
 
-// Default/fallback when we haven't (yet, or can't) confirm the true
-// GPS-nearest course: most recently played, falling back to the first
-// course a user created.
+// Default/fallback while the true GPS-nearest course resolves (or if it
+// never does): most recently played, falling back to the first course a
+// user created.
 export function getDefaultCourse(rounds, courses) {
   if (!courses.length) return null;
   const sorted = [...rounds].sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
@@ -114,6 +78,56 @@ export function getDefaultCourse(rounds, courses) {
     if (course) return course;
   }
   return courses[0];
+}
+
+async function resolveNearestAndUpdate() {
+  if (!('geolocation' in navigator)) return;
+  try {
+    const pos = await getCurrentPosition();
+    const [nearest] = await searchCourses({ lat: pos.lat, lng: pos.lng, radiusMi: 25, limit: 1 });
+    if (!nearest) return;
+
+    const localCourses = await storage.getCourses();
+    const known = localCourses.find((c) => c.externalId === nearest.externalId);
+    const slot = document.getElementById('round-tile-slot');
+    if (!slot) return; // user navigated away before this resolved
+
+    const loc = known?.location || (nearest.lat != null ? { lat: nearest.lat, lng: nearest.lng } : null);
+    slot.innerHTML = tile({
+      href: '#/round/new',
+      extraClass: 'tile--hero',
+      ariaLabel: `Start a new round at ${nearest.name}, the nearest course`,
+      innerHtml: `
+        <div id="hero-tile-map" class="tile-map"></div>
+        <span class="hero-eyebrow">Nearest course</span>
+        <span class="hero-course">${escapeHtml(known ? known.name : nearest.name)}</span>
+        <span class="hero-cta">New round →</span>
+      `,
+    });
+    mountHeroMap(loc);
+  } catch {
+    // Silent — the fallback tile already rendered.
+  }
+}
+
+// A non-interactive satellite snapshot behind the hero tile's text —
+// stands in for a real course photo. Disabled dragging/zoom/etc. since
+// it's decorative; the whole tile is still one big tap target.
+function mountHeroMap(loc) {
+  const container = document.getElementById('hero-tile-map');
+  if (!container || !loc || typeof L === 'undefined') return;
+  const map = L.map(container, {
+    zoomControl: false,
+    attributionControl: false,
+    dragging: false,
+    scrollWheelZoom: false,
+    doubleClickZoom: false,
+    boxZoom: false,
+    keyboard: false,
+    touchZoom: false,
+    tap: false,
+  }).setView([loc.lat, loc.lng], 16);
+  L.tileLayer(SATELLITE_TILE_URL, { maxZoom: 19, attribution: SATELLITE_ATTRIBUTION }).addTo(map);
 }
 
 // --- Tile 2: a handful of mini stats; tapping opens the full stats screen.

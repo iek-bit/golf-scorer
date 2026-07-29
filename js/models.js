@@ -16,16 +16,20 @@ export function makeId() {
 /**
  * A course can come from two places:
  *  - 'manual': the user typed in name/holes/par (Stage 1 flow, still here
- *    for courses OpenGolfAPI doesn't have).
+ *    for courses OpenGolfAPI doesn't have). Par is always considered
+ *    confirmed here — the user typed it in on purpose.
  *  - 'api': picked from OpenGolfAPI search. `externalId` links back to
  *    their course id (for facts only — name/location — never geometry).
+ *    Per-hole par isn't reliably free from them, so each hole starts at a
+ *    placeholder par with `parConfirmed: false` — the play screen asks
+ *    once, the first time that hole is played, and saves the answer.
  *
  * Either way, `holes[].tee` and `holes[].green` start out null and get
  * filled in locally the first time someone plays that hole (see
- * inferGeoFromShots in views/play.js) — that geometry is never fetched
+ * mapHoleFromShots in views/play.js) — that geometry is never fetched
  * from OpenGolfAPI, since their precise green/tee data isn't free.
  *
- * @param {{name: string, numHoles: 9|18, holes: {number: number, par: number}[], source?: 'manual'|'api', externalId?: string|null, location?: {lat:number,lng:number}|null}} args
+ * @param {{name: string, numHoles: 9|18, holes: {number: number, par: number, parConfirmed?: boolean}[], source?: 'manual'|'api', externalId?: string|null, location?: {lat:number,lng:number}|null}} args
  */
 export function makeCourse({ name, numHoles, holes, source = 'manual', externalId = null, location = null }) {
   const now = new Date().toISOString();
@@ -33,7 +37,7 @@ export function makeCourse({ name, numHoles, holes, source = 'manual', externalI
     id: makeId(),
     name,
     numHoles,
-    holes: holes.map((h) => ({ tee: null, green: null, ...h })), // [{ number, par, tee, green }]
+    holes: holes.map((h) => ({ tee: null, green: null, parConfirmed: source === 'manual', ...h })), // [{ number, par, parConfirmed, tee, green }]
     source, // 'manual' | 'api'
     externalId, // OpenGolfAPI course id, or null for manually-added courses
     location, // { lat, lng } — the course's general location, for "nearest course"
