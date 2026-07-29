@@ -35,13 +35,16 @@ There's no bottom tab bar. The home screen is three stacked tiles:
 
 1. **Start/continue round** — a hero tile. If a round is in progress it
    shows "Continue round" with that course's satellite image behind the
-   text. Otherwise it shows the most recently played course immediately
-   (no waiting), then actively resolves the true GPS-nearest course in the
-   background — this *can* prompt for location permission, since finding
-   the nearest course is the point of the button (see
-   `resolveNearestAndUpdate` in `js/views/home.js`). It never does this
-   while a round is in progress. The satellite image comes from the same
-   non-interactive map used elsewhere — see "Course search" below.
+   text. Otherwise it shows "Locating you…" immediately and actively
+   resolves the true GPS-nearest course in the background — this *can*
+   prompt for location permission, since finding the nearest course is the
+   point of the button (see `resolveNearestAndUpdate` in
+   `js/views/home.js`). It always lands on a definitive final state:
+   the nearest course if one's found, otherwise the most recently played
+   course, otherwise a plain "Find a course" prompt — never stuck on
+   "Locating…" if permission is denied or nothing's nearby. It never does
+   this while a round is in progress. The satellite image comes from the
+   same non-interactive map used elsewhere — see "Course search" below.
 2. **Stats** — a few mini stats (rounds played, avg to par, best round,
    avg putts). Tapping it opens the full Stats screen, which also lists
    every completed round (tap one to see its scorecard again).
@@ -94,6 +97,13 @@ API-sourced ones. Worth knowing:
 - Satellite imagery (the hero tile background, the play-screen map) comes
   from Esri World Imagery — free, keyless tiles, no billing account
   required (unlike Google Maps — see `js/mapConfig.js`).
+- A fixed search radius made "nearest course" look broken in areas with
+  thin OpenGolfAPI coverage, so nearby search now escalates — 25mi, then
+  50, then 100 — and stops at the first radius that finds anything
+  (`searchNearbyCourses` in `js/api/opengolfapi.js`).
+- Every result list — nearby search, name search, and your own saved
+  courses — is sorted nearest-first once your position is known
+  (`sortByDistance` in `js/geo.js`), not just the dedicated "near me" flow.
 
 ## Par, when OpenGolfAPI doesn't have it
 

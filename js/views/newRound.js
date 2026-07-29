@@ -1,8 +1,8 @@
 import { storage } from '../storage.js';
 import { makeCourse, makeRound } from '../models.js';
 import { escapeHtml } from './home.js';
-import { searchCourses } from '../api/opengolfapi.js';
-import { getCurrentPosition } from '../geo.js';
+import { searchCourses, searchNearbyCourses } from '../api/opengolfapi.js';
+import { getCurrentPosition, sortByDistance } from '../geo.js';
 
 const DEFAULT_PAR = 4;
 const DEFAULT_HOLE_COUNT = 18;
@@ -18,6 +18,7 @@ export async function renderNewRound(outlet) {
   let searchStatus = 'idle'; // idle | loading | empty
   let locationStatus = 'loading'; // loading | idle | error — starts loading, see loadNearby() below
   let requestId = 0; // guards against a slow response clobbering a newer one
+  let userPosition = null; // cached once known — reused to sort every result list "nearest first"
 
   render();
   loadNearby(); // auto-run on open — no button tap needed
@@ -66,10 +67,11 @@ export async function renderNewRound(outlet) {
 
   function renderLocalCourses() {
     if (!localCourses.length) return '';
+    const sorted = sortByDistance(userPosition, localCourses, (c) => c.location);
     return `
       <div class="field-group-label">Your courses</div>
       <ul class="course-card-list">
-        ${localCourses.map((c, i) => renderCourseCard(c, `local-${i}`, `${c.numHoles} holes`)).join('')}
+        ${sorted.map((c) => renderCourseCard(c, `local-${localCourses.indexOf(c)}`, `${c.numHoles} holes`)).join('')}
       </ul>
     `;
   }
@@ -114,9 +116,13 @@ export async function renderNewRound(outlet) {
       const myRequest = ++requestId;
       searchStatus = 'loading';
       document.getElementById('search-results').innerHTML = renderApiResults();
-      const results = await searchCourses({ q });
+      // Pass position along if we already have it (from loadNearby, below)
+      // so results can be ranked with distance in mind, not just text
+      // match — and sort client-side regardless, so "nearest first" is
+      // guaranteed even if the API doesn't blend the two itself.
+      const results = await searchCourses(userPosition ? { q, lat: userPosition.lat, lng: userPosition.lng } : { q });
       if (myRequest !== requestId) return; // a newer search/location request superseded this one
-      apiResults = results;
+      apiResults = sortByDistance(userPosition, results, (c) => (c.lat != null ? { lat: c.lat, lng: c.lng } : null));
       resultsLabel = `Results for "${q}"`;
       searchStatus = results.length ? 'idle' : 'empty';
       document.getElementById('search-results').innerHTML = renderApiResults();
@@ -130,9 +136,10 @@ export async function renderNewRound(outlet) {
     render();
     try {
       const pos = await getCurrentPosition();
-      const results = await searchCourses({ lat: pos.lat, lng: pos.lng, radiusMi: 25 });
+      userPosition = pos;
+      const results = await searchNearbyCourses({ lat: pos.lat, lng: pos.lng });
       if (myRequest !== requestId) return; // the user searched by name before this resolved
-      apiResults = results;
+      apiResults = sortByDistance(userPosition, results, (c) => (c.lat != null ? { lat: c.lat, lng: c.lng } : null));
       resultsLabel = 'Near you';
       searchStatus = results.length ? 'idle' : 'empty';
       locationStatus = 'idle';

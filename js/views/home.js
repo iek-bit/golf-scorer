@@ -1,7 +1,7 @@
 import { storage } from '../storage.js';
 import { computeStats } from '../stats.js';
 import { tile } from '../components/tile.js';
-import { searchCourses } from '../api/opengolfapi.js';
+import { searchNearbyCourses } from '../api/opengolfapi.js';
 import { getCurrentPosition } from '../geo.js';
 import { SATELLITE_TILE_URL, SATELLITE_ATTRIBUTION } from '../mapConfig.js';
 
@@ -22,8 +22,10 @@ export async function renderHome(outlet) {
   // Actively resolve the true GPS-nearest course (this can prompt for
   // location permission — that's intentional here, since finding the
   // nearest course is the whole point of the button). Never runs while a
-  // round is in progress; "Continue round" always wins.
-  if (heroState.mode === 'start') resolveNearestAndUpdate();
+  // round is in progress; "Continue round" always wins. Always lands on a
+  // definitive final label — success or not — so the tile never sits on
+  // "Locating you…" forever if permission is denied or nothing's nearby.
+  if (heroState.mode === 'start') resolveNearestAndUpdate(heroState.course);
 }
 
 // --- Tile 1: start a new round, or resume one already in progress.
@@ -33,10 +35,8 @@ function computeHeroState(rounds, courses) {
   if (inProgress) {
     return { mode: 'continue', course: courses.find((c) => c.id === inProgress.courseId) || null, roundId: inProgress.id };
   }
-  if (courses.length) {
-    return { mode: 'start', course: getDefaultCourse(rounds, courses), label: 'Start round' };
-  }
-  return { mode: 'start', course: null, label: 'Start round' };
+  const fallbackCourse = courses.length ? getDefaultCourse(rounds, courses) : null;
+  return { mode: 'start', course: fallbackCourse };
 }
 
 function renderRoundTile(state) {
@@ -54,14 +54,20 @@ function renderRoundTile(state) {
     });
   }
 
+  // "resolving" means we're actively checking for a GPS-nearer course —
+  // this is a real in-progress state, not a dead end, so it gets its own
+  // label rather than reusing the final "Find a course" copy.
+  const eyebrow = state.course ? 'Start round' : 'Locating you…';
+  const courseLabel = state.course ? state.course.name : 'Finding nearest course…';
+
   return tile({
     href: '#/round/new',
     extraClass: `tile--hero ${state.course ? '' : 'tile--hero-empty'}`,
     ariaLabel: state.course ? `Start a new round at ${state.course.name}` : 'Find a course to play',
     innerHtml: `
       <div id="hero-tile-map" class="tile-map"></div>
-      <span class="hero-eyebrow">Start round</span>
-      <span class="hero-course">${escapeHtml(state.course ? state.course.name : 'Find a course')}</span>
+      <span class="hero-eyebrow">${escapeHtml(eyebrow)}</span>
+      <span class="hero-course">${escapeHtml(courseLabel)}</span>
       <span class="hero-cta">New round →</span>
     `,
   });
@@ -80,34 +86,49 @@ export function getDefaultCourse(rounds, courses) {
   return courses[0];
 }
 
-async function resolveNearestAndUpdate() {
-  if (!('geolocation' in navigator)) return;
+async function resolveNearestAndUpdate(fallbackCourse) {
+  if (!('geolocation' in navigator)) {
+    finalizeTile(fallbackCourse, null);
+    return;
+  }
   try {
     const pos = await getCurrentPosition();
-    const [nearest] = await searchCourses({ lat: pos.lat, lng: pos.lng, radiusMi: 25, limit: 1 });
-    if (!nearest) return;
-
-    const localCourses = await storage.getCourses();
-    const known = localCourses.find((c) => c.externalId === nearest.externalId);
-    const slot = document.getElementById('round-tile-slot');
-    if (!slot) return; // user navigated away before this resolved
-
-    const loc = known?.location || (nearest.lat != null ? { lat: nearest.lat, lng: nearest.lng } : null);
-    slot.innerHTML = tile({
-      href: '#/round/new',
-      extraClass: 'tile--hero',
-      ariaLabel: `Start a new round at ${nearest.name}, the nearest course`,
-      innerHtml: `
-        <div id="hero-tile-map" class="tile-map"></div>
-        <span class="hero-eyebrow">Nearest course</span>
-        <span class="hero-course">${escapeHtml(known ? known.name : nearest.name)}</span>
-        <span class="hero-cta">New round →</span>
-      `,
-    });
-    mountHeroMap(loc);
+    const [nearest] = await searchNearbyCourses({ lat: pos.lat, lng: pos.lng, limit: 1 });
+    finalizeTile(fallbackCourse, nearest);
   } catch {
-    // Silent — the fallback tile already rendered.
+    finalizeTile(fallbackCourse, null); // denied, timed out, or no signal — fall back, don't hang
   }
+}
+
+// Renders the tile's final state once we know whether a GPS-nearest
+// course was found: the nearest course if we got one, otherwise whatever
+// fallback we already had (or the "Find a course" CTA if there was none).
+async function finalizeTile(fallbackCourse, nearest) {
+  const slot = document.getElementById('round-tile-slot');
+  if (!slot) return;
+
+  if (!nearest) {
+    slot.innerHTML = renderRoundTile({ mode: 'start', course: fallbackCourse });
+    mountHeroMap(fallbackCourse?.location || null);
+    return;
+  }
+
+  const localCourses = await storage.getCourses();
+  const known = localCourses.find((c) => c.externalId === nearest.externalId);
+  const loc = known?.location || (nearest.lat != null ? { lat: nearest.lat, lng: nearest.lng } : null);
+
+  slot.innerHTML = tile({
+    href: '#/round/new',
+    extraClass: 'tile--hero',
+    ariaLabel: `Start a new round at ${nearest.name}, the nearest course`,
+    innerHtml: `
+      <div id="hero-tile-map" class="tile-map"></div>
+      <span class="hero-eyebrow">Nearest course</span>
+      <span class="hero-course">${escapeHtml(known ? known.name : nearest.name)}</span>
+      <span class="hero-cta">New round →</span>
+    `,
+  });
+  mountHeroMap(loc);
 }
 
 // A non-interactive satellite snapshot behind the hero tile's text —

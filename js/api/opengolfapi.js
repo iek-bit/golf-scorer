@@ -50,3 +50,21 @@ export async function searchCourses({ q, lat, lng, radiusMi = 25, limit = 15 } =
     par: c.par ?? c.par_total ?? null,
   }));
 }
+
+// A fixed 25mi radius comes up empty in areas where OpenGolfAPI's
+// coverage is thin, which made "nearest course" look broken rather than
+// just under-covered. This tries progressively wider radii and returns
+// the first non-empty result set.
+const NEARBY_RADII_MI = [25, 50, 100];
+
+/**
+ * @param {{lat: number, lng: number, limit?: number}} args
+ * @returns {Promise<{externalId, name, city, state, lat, lng, par}[]>}
+ */
+export async function searchNearbyCourses({ lat, lng, limit = 15 } = {}) {
+  for (const radiusMi of NEARBY_RADII_MI) {
+    const results = await searchCourses({ lat, lng, radiusMi, limit });
+    if (results.length) return results;
+  }
+  return [];
+}

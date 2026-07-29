@@ -24,6 +24,25 @@ export function metersToYards(m) {
 }
 
 /**
+ * Sorts a copy of `items` by distance from `position`. Items whose
+ * location is unknown (getLatLng returns null/undefined) sort to the end
+ * rather than being dropped, so "no location on file" doesn't hide a
+ * course — it just doesn't get to claim to be the nearest one. Returns
+ * `items` unchanged (same order) if `position` isn't known yet.
+ */
+export function sortByDistance(position, items, getLatLng) {
+  if (!position) return items;
+  return [...items].sort((a, b) => {
+    const locA = getLatLng(a);
+    const locB = getLatLng(b);
+    if (!locA && !locB) return 0;
+    if (!locA) return 1;
+    if (!locB) return -1;
+    return haversineMeters(position, locA) - haversineMeters(position, locB);
+  });
+}
+
+/**
  * Promise wrapper around navigator.geolocation.getCurrentPosition.
  * Rejects with a plain Error (not a raw GeolocationPositionError) so
  * callers can just read err.message.
