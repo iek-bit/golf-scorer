@@ -1007,13 +1007,13 @@ h2 {
    Shot tracking, rangefinder & map (play screen)
    ============================================================ */
 
-.first-time-badge {
+.mapping-hint {
+  margin: 0;
+  padding: 0 24px;
   font-size: 12px;
   font-weight: 600;
   color: var(--color-fairway-bright);
-  background: color-mix(in srgb, var(--color-fairway-bright) 14%, transparent);
-  border-radius: 999px;
-  padding: 6px 12px;
+  line-height: 1.5;
 }
 
 .map-area {
@@ -1082,12 +1082,15 @@ h2 {
   color: var(--color-ink);
 }
 
-/* Track Shot floats like a shutter button, half-overlapping the bottom
-   edge of the map — deliberately the most prominent tap target on the
-   screen, since it's the primary action while playing. */
+/* Track Shot sits near the bottom of the map, deliberately the most
+   prominent tap target on the screen since it's the primary action while
+   playing. It stays fully inside the map's own bounds (not hanging past
+   the edge) — the map is a Leaflet instance that manages its own internal
+   layout, so anchoring a sibling to a fixed size within it is more
+   reliable than relying on it to keep an exact outside-edge overlap. */
 .track-shot-fab {
   position: absolute;
-  bottom: -26px;
+  bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 6;
@@ -1097,12 +1100,19 @@ h2 {
   border: 4px solid var(--color-surface);
   background: var(--color-fairway);
   color: #fff;
-  font-size: 24px;
   display: grid;
   place-items: center;
   cursor: pointer;
   box-shadow: var(--shadow-card);
-  transition: transform 0.12s var(--ease-standard);
+  transition: transform 0.12s var(--ease-standard), background-color 0.15s var(--ease-standard);
+}
+
+/* Before the hole is started, the button marks the tee instead of a
+   stroke — a distinct color makes that mode visible at a glance, on top
+   of the flag-vs-crosshair icon change. */
+.track-shot-fab--start {
+  background: var(--color-sand);
+  color: var(--color-ink);
 }
 
 .track-shot-fab:active {

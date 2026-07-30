@@ -22,7 +22,7 @@ export async function renderPlay(outlet, params) {
   if (currentIndex === -1) currentIndex = round.holeScores.length - 1;
 
   let lastKnownPosition = null;
-  let rangefinderAttemptedForHole = null; // holeNumber we've already silently tried once
+  let positionAttemptedForHole = null; // holeNumber we've already tried to locate once
   let trackShotError = null;
   let editingPar = false;
 
@@ -36,6 +36,7 @@ export async function renderPlay(outlet, params) {
     if (!holeScore.shots) holeScore.shots = [];
 
     const isUnmapped = !holeDef.tee && !holeDef.green;
+    const holeStarted = holeScore.shots.length > 0;
 
     outlet.innerHTML = `
       <section class="play-screen">
@@ -45,15 +46,17 @@ export async function renderPlay(outlet, params) {
           <div class="map-area">
             <div id="shot-map" class="shot-map shot-map--large"></div>
             ${holeDef.green ? `<button type="button" class="rangefinder-overlay" id="rangefinder-btn">${renderRangefinderContent(holeDef, lastKnownPosition)}</button>` : ''}
-            <button type="button" class="track-shot-fab" id="track-shot-btn" aria-label="Track shot">🎯</button>
+            <button type="button" class="track-shot-fab ${holeStarted ? '' : 'track-shot-fab--start'}" id="track-shot-btn" aria-label="${holeStarted ? 'Track shot' : 'Start hole'}">
+              ${holeStarted ? crosshairIcon() : flagIcon()}
+            </button>
           </div>
           ${trackShotError ? `<p class="field-hint field-hint-error">${escapeHtml(trackShotError)}</p>` : ''}
 
           <div class="hole-meta-row">
             <span class="hole-number">Hole ${holeDef.number}</span>
             ${renderParControl(holeDef)}
-            ${isUnmapped ? `<span class="first-time-badge">Mapping this hole</span>` : ''}
           </div>
+          ${isUnmapped ? `<p class="mapping-hint">${mappingHint(holeStarted)}</p>` : ''}
 
           <div class="stroke-display ${scoreClass(holeScore.strokes, holeDef.par)}">
             <span class="stroke-number">${holeScore.strokes}</span>
@@ -85,7 +88,7 @@ export async function renderPlay(outlet, params) {
 
     renderShotMap(holeScore, holeDef, lastKnownPosition);
 
-    document.getElementById('track-shot-btn').addEventListener('click', trackShot);
+    document.getElementById('track-shot-btn').addEventListener('click', holeStarted ? trackShot : startHole);
     const undoBtn = document.getElementById('undo-shot-btn');
     if (undoBtn) undoBtn.addEventListener('click', undoLastShot);
     const rangefinderBtn = document.getElementById('rangefinder-btn');
@@ -99,7 +102,7 @@ export async function renderPlay(outlet, params) {
     attachScorecardStripHandlers();
     attachParControlHandlers(holeDef);
 
-    maybeAutoFetchRangefinder(holeDef, holeScore);
+    maybeAutoFetchPosition(holeScore);
   }
 
   // ---- Scorecard strip ----
@@ -135,7 +138,7 @@ export async function renderPlay(outlet, params) {
     document.querySelectorAll('.strip-cell').forEach((btn) => {
       btn.addEventListener('click', () => {
         currentIndex = Number(btn.dataset.index);
-        rangefinderAttemptedForHole = null;
+        positionAttemptedForHole = null;
         editingPar = false;
         render();
       });
@@ -195,19 +198,33 @@ export async function renderPlay(outlet, params) {
     render();
   }
 
-  // The first tracked shot switches a hole from "quick guess at par" to
-  // "count what's actually happening" — so it resets the count to 1
-  // instead of adding on top of the par default. Every tap after that
-  // just adds one.
+  // The first tap on a hole marks where you're starting from — the tee —
+  // and deliberately does NOT count as a stroke, so tracking "start, then
+  // every shot" gives an accurate count instead of one too many. Every
+  // tap after that is a real stroke.
+  async function startHole() {
+    trackShotError = null;
+    try {
+      const pos = await getCurrentPosition();
+      lastKnownPosition = pos;
+      const holeScore = round.holeScores[currentIndex];
+      holeScore.shots.push({ lat: pos.lat, lng: pos.lng, capturedAt: new Date().toISOString() });
+      holeScore.strokes = 0;
+      await storage.saveRound(round);
+    } catch (err) {
+      trackShotError = err.message;
+    }
+    render();
+  }
+
   async function trackShot() {
     trackShotError = null;
     try {
       const pos = await getCurrentPosition();
       lastKnownPosition = pos;
       const holeScore = round.holeScores[currentIndex];
-      const isFirstTrackedShot = holeScore.shots.length === 0;
       holeScore.shots.push({ lat: pos.lat, lng: pos.lng, capturedAt: new Date().toISOString() });
-      holeScore.strokes = isFirstTrackedShot ? 1 : (holeScore.strokes ?? 0) + 1;
+      holeScore.strokes = (holeScore.strokes ?? 0) + 1;
       await storage.saveRound(round);
     } catch (err) {
       trackShotError = err.message;
@@ -219,7 +236,13 @@ export async function renderPlay(outlet, params) {
     const holeScore = round.holeScores[currentIndex];
     if (!holeScore.shots.length) return;
     holeScore.shots.pop();
-    holeScore.strokes = Math.max(0, (holeScore.strokes ?? 1) - 1);
+    if (holeScore.shots.length === 0) {
+      // Undid the "start hole" marker itself — back to square one.
+      const holeDef = course.holes.find((h) => h.number === holeScore.holeNumber);
+      holeScore.strokes = holeDef.par;
+    } else {
+      holeScore.strokes = Math.max(0, (holeScore.strokes ?? 1) - 1);
+    }
     await storage.saveRound(round);
     render();
   }
@@ -234,24 +257,26 @@ export async function renderPlay(outlet, params) {
     render();
   }
 
-  async function maybeAutoFetchRangefinder(holeDef, holeScore) {
-    if (!holeDef.green) return;
-    if (rangefinderAttemptedForHole === holeScore.holeNumber) return;
-    rangefinderAttemptedForHole = holeScore.holeNumber;
-    if (!('permissions' in navigator)) return;
+  // Tries once per hole to show where you are on the map immediately —
+  // even before you've tapped anything — rather than leaving the map
+  // blank until the first tap. This can prompt for location permission,
+  // same reasoning as the home screen: it's central to the whole screen,
+  // not an optional extra.
+  async function maybeAutoFetchPosition(holeScore) {
+    if (positionAttemptedForHole === holeScore.holeNumber) return;
+    positionAttemptedForHole = holeScore.holeNumber;
+    if (!('geolocation' in navigator)) return;
     try {
-      const status = await navigator.permissions.query({ name: 'geolocation' });
-      if (status.state !== 'granted') return;
       lastKnownPosition = await getCurrentPosition();
       render();
     } catch {
-      // Silent — the rangefinder badge itself is still tappable to retry.
+      // Silent — Start hole / Track shot and the rangefinder badge are still tappable to retry.
     }
   }
 
   function go(delta) {
     currentIndex = Math.min(round.holeScores.length - 1, Math.max(0, currentIndex + delta));
-    rangefinderAttemptedForHole = null;
+    positionAttemptedForHole = null;
     editingPar = false;
     render();
   }
@@ -260,7 +285,7 @@ export async function renderPlay(outlet, params) {
     await mapHoleFromShots(course, round.holeScores[currentIndex]);
     if (currentIndex < round.holeScores.length - 1) {
       currentIndex += 1;
-      rangefinderAttemptedForHole = null;
+      positionAttemptedForHole = null;
       editingPar = false;
       render();
     } else {
@@ -291,10 +316,10 @@ export async function renderPlay(outlet, params) {
   }
 }
 
-// Pure — testable without the DOM. First tracked shot ≈ the tee, last ≈
-// the pin. A single point per hole for now; averaging across rounds (or a
-// one-time "walk the green" calibration) to get true front/center/back
-// edges is future work, not this pass.
+// Pure — testable without the DOM. The "start hole" tap (shots[0]) marks
+// the tee; the last tracked shot marks the pin. A single point per hole
+// for now; averaging across rounds (or a one-time "walk the green"
+// calibration) to get true front/center/back edges is future work.
 export function computeTeeGreenFromShots(shots) {
   if (!shots || !shots.length) return null;
   const first = shots[0];
@@ -303,6 +328,21 @@ export function computeTeeGreenFromShots(shots) {
     tee: { lat: first.lat, lng: first.lng },
     green: { lat: last.lat, lng: last.lng },
   };
+}
+
+function mappingHint(holeStarted) {
+  return holeStarted ? 'Last tracked shot will mark the green' : 'Start hole marks the tee — free, not a stroke';
+}
+
+// Small line-art icons instead of an emoji, so the button reads as part of
+// the app rather than a generic system glyph. currentColor picks up
+// whatever color the button itself is styled with.
+function flagIcon() {
+  return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="21" x2="5" y2="3"/><path d="M5 4h13l-3 4 3 4H5"/></svg>`;
+}
+
+function crosshairIcon() {
+  return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><line x1="12" y1="1.5" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22.5"/><line x1="1.5" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22.5" y2="12"/></svg>`;
 }
 
 function renderRangefinderContent(holeDef, position) {
@@ -328,7 +368,7 @@ function renderShotMap(holeScore, holeDef, position) {
 
   const referencePoint = holeDef.green || points[0] || position;
   if (!referencePoint) {
-    container.innerHTML = `<p class="shot-map-placeholder">Track a shot to start mapping this hole.</p>`;
+    container.innerHTML = `<p class="shot-map-placeholder">Locating you…</p>`;
     return;
   }
 

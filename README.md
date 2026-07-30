@@ -126,24 +126,30 @@ someone plays it.**
 - The play screen's map is the current hole rendered on Esri satellite
   imagery. Once tee and green are both known, it fits the view to show the
   whole hole; before that, it centers on your current position at a
-  moderate zoom (not tight — "see the hole," not "see your feet").
-  Tee/green/shots use small themed markers (`.map-marker--*` in
-  `styles.css`) instead of Leaflet's default pin image.
-- **Track shot** — the circular button that overlaps the bottom edge of
-  the map — captures your current GPS position, appends it to that hole's
-  `shots` list, and counts it as a stroke. A manual +/− below still works
-  with no location attached, for when GPS isn't available or wanted.
+  moderate zoom (not tight — "see the hole," not "see your feet"), and it
+  tries to show that position as soon as the hole loads, before you've
+  tapped anything — not just after tracking a shot. Tee/green/shots/your
+  position use small themed markers (`.map-marker--*` in `styles.css`)
+  instead of Leaflet's default pin image.
+- The floating button on the map has two modes. The **first** tap on a
+  hole is **Start hole** (flag icon, sand-colored) — it marks the tee and
+  deliberately does **not** count as a stroke. Every tap after that is
+  **Track shot** (crosshair icon, fairway-colored) and does count. That
+  split exists specifically so "mark the tee, then track every shot"
+  produces an accurate stroke count instead of one too many. A manual +/−
+  below still works with no location attached, for when GPS isn't
+  available or wanted.
 - A compact scorecard strip runs across the top of the screen — every hole
   in the round, tap any one to jump straight to it, current hole
   highlighted, running total at the end.
 - When you move past a hole (Next hole / Finish round) and that hole has no
-  saved tee/green yet, the **first** tracked shot becomes the tee and the
-  **last** becomes the green — saved onto the *course* record, not the
-  round, so it's there for every future round on that course and is never
-  overwritten once set. See `mapHoleFromShots()` / `computeTeeGreenFromShots()`
-  in `js/views/play.js`.
-- A hole not yet mapped shows a small "Mapping this hole" badge next to its
-  par, so it's clear what's happening.
+  saved tee/green yet, the **Start hole** tap becomes the tee and the
+  **last tracked shot** becomes the green — saved onto the *course*
+  record, not the round, so it's there for every future round on that
+  course and is never overwritten once set. See `mapHoleFromShots()` /
+  `computeTeeGreenFromShots()` in `js/views/play.js`.
+- A hole not yet mapped shows a one-line hint under Hole/Par explaining
+  which tap does what, so the tee/green logic isn't a surprise.
 - This is a single point per green for now (not the separate front/center/
   back edges the plan describes) — that needs either several rounds' worth
   of data to average out, or a dedicated one-time calibration step, and
@@ -241,10 +247,12 @@ coordinates to show anything useful.
 2. Pick a course, choose holes to play, and start the round.
 3. On hole 1, if it's an API-sourced course, you should see a tappable
    "Par 4 · confirm" badge — tap it and pick the real par.
-4. Tap the circular **Track shot** button (overlapping the bottom of the
-   map) at your actual position for each stroke — watch the strokes count,
-   the scorecard strip, and the map markers update. (First time playing
-   this hole, so no rangefinder badge yet — nothing to range to.)
+4. On hole 1, the map should locate you almost immediately. Tap the
+   (sand-colored, flag icon) **Start hole** button once at the tee — that
+   marks the tee and doesn't count as a stroke. From then on the same
+   button is **Track shot** (fairway-colored, crosshair icon) — tap it at
+   your actual position after each stroke and watch the count, the
+   scorecard strip, and the map markers update.
 5. Tap **Next hole**. Play that same hole again later (new round, same
    course) and you should see a "yds to green" badge appear in the corner
    of the map, and the map should already be framed around the hole you
