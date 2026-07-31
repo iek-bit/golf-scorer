@@ -46,10 +46,12 @@ export async function renderPlay(outlet, params) {
           <div class="map-area">
             <div id="shot-map" class="shot-map shot-map--large"></div>
             ${holeDef.green ? `<button type="button" class="rangefinder-overlay" id="rangefinder-btn">${renderRangefinderContent(holeDef, lastKnownPosition)}</button>` : ''}
-            <button type="button" class="track-shot-fab ${holeStarted ? '' : 'track-shot-fab--start'}" id="track-shot-btn" aria-label="${holeStarted ? 'Track shot' : 'Start hole'}">
-              ${holeStarted ? crosshairIcon() : flagIcon()}
-            </button>
           </div>
+
+          <button type="button" class="track-shot-btn ${holeStarted ? '' : 'track-shot-btn--start'}" id="track-shot-btn" aria-label="${holeStarted ? 'Track shot' : 'Start hole'}">
+            ${holeStarted ? crosshairIcon() : flagIcon()}
+            <span>${holeStarted ? 'Track shot' : 'Start hole'}</span>
+          </button>
           ${trackShotError ? `<p class="field-hint field-hint-error">${escapeHtml(trackShotError)}</p>` : ''}
 
           <div class="hole-meta-row">
@@ -372,24 +374,34 @@ function renderShotMap(holeScore, holeDef, position) {
     return;
   }
 
-  const map = L.map(container, { zoomControl: false, attributionControl: false }).setView(
-    [referencePoint.lat, referencePoint.lng],
-    points.length ? 17 : POSITION_ONLY_ZOOM
-  );
-  L.tileLayer(SATELLITE_TILE_URL, { maxZoom: 19, attribution: SATELLITE_ATTRIBUTION }).addTo(map);
+  // The map is a nice-to-have layer on top of the actual scoring/tracking
+  // data, which is already saved by this point. A Leaflet/tile/marker
+  // failure here should never take down the rest of the screen (buttons,
+  // scorecard, strokes) or silently break the caller's render() call —
+  // it just falls back to a plain placeholder instead.
+  try {
+    const map = L.map(container, { zoomControl: false, attributionControl: false }).setView(
+      [referencePoint.lat, referencePoint.lng],
+      points.length ? 17 : POSITION_ONLY_ZOOM
+    );
+    L.tileLayer(SATELLITE_TILE_URL, { maxZoom: 19, attribution: SATELLITE_ATTRIBUTION }).addTo(map);
 
-  if (holeDef.tee) L.marker([holeDef.tee.lat, holeDef.tee.lng], { icon: markerIcon('tee', 'T') }).addTo(map).bindTooltip('Tee');
-  if (holeDef.green) L.marker([holeDef.green.lat, holeDef.green.lng], { icon: markerIcon('green', '⛳') }).addTo(map).bindTooltip('Green');
-  holeScore.shots.forEach((s, i) => {
-    L.marker([s.lat, s.lng], { icon: markerIcon('shot', String(i + 1)) }).addTo(map).bindTooltip(`Shot ${i + 1}`);
-  });
-  if (position) L.marker([position.lat, position.lng], { icon: markerIcon('you', '') }).addTo(map);
+    if (holeDef.tee) L.marker([holeDef.tee.lat, holeDef.tee.lng], { icon: markerIcon('tee', 'T') }).addTo(map).bindTooltip('Tee');
+    if (holeDef.green) L.marker([holeDef.green.lat, holeDef.green.lng], { icon: markerIcon('green', '⛳') }).addTo(map).bindTooltip('Green');
+    holeScore.shots.forEach((s, i) => {
+      L.marker([s.lat, s.lng], { icon: markerIcon('shot', String(i + 1)) }).addTo(map).bindTooltip(`Shot ${i + 1}`);
+    });
+    if (position) L.marker([position.lat, position.lng], { icon: markerIcon('you', '') }).addTo(map);
 
-  const fitPoints = [...points, ...(position ? [position] : [])];
-  if (fitPoints.length > 1) {
-    map.fitBounds(L.latLngBounds(fitPoints.map((p) => [p.lat, p.lng])), { padding: [28, 28] });
-  } else if (!points.length && position) {
-    map.setView([position.lat, position.lng], POSITION_ONLY_ZOOM);
+    const fitPoints = [...points, ...(position ? [position] : [])];
+    if (fitPoints.length > 1) {
+      map.fitBounds(L.latLngBounds(fitPoints.map((p) => [p.lat, p.lng])), { padding: [28, 28] });
+    } else if (!points.length && position) {
+      map.setView([position.lat, position.lng], POSITION_ONLY_ZOOM);
+    }
+  } catch (err) {
+    console.error('Map render failed:', err);
+    container.innerHTML = `<p class="shot-map-placeholder">Map unavailable right now.</p>`;
   }
 }
 

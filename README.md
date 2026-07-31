@@ -104,6 +104,15 @@ API-sourced ones. Worth knowing:
 - Every result list — nearby search, name search, and your own saved
   courses — is sorted nearest-first once your position is known
   (`sortByDistance` in `js/geo.js`), not just the dedicated "near me" flow.
+  This one was a confirmed real bug, not just a UX gap: the home tile was
+  asking the API for a single result and trusting it was the closest one,
+  with no client-side check — which is how a course an hour away ended up
+  labeled "nearest." Every "nearest" lookup now fetches a real batch and
+  sorts it by actual calculated distance itself, never trusting the API's
+  own ordering.
+- The home screen's hero tile now has a small directions button (top-right
+  corner) that opens Google Maps with driving directions to that course —
+  a plain `maps.google.com/dir` link, no API key needed.
 
 ## Par, when OpenGolfAPI doesn't have it
 
@@ -131,14 +140,25 @@ someone plays it.**
   tapped anything — not just after tracking a shot. Tee/green/shots/your
   position use small themed markers (`.map-marker--*` in `styles.css`)
   instead of Leaflet's default pin image.
-- The floating button on the map has two modes. The **first** tap on a
-  hole is **Start hole** (flag icon, sand-colored) — it marks the tee and
-  deliberately does **not** count as a stroke. Every tap after that is
-  **Track shot** (crosshair icon, fairway-colored) and does count. That
-  split exists specifically so "mark the tee, then track every shot"
-  produces an accurate stroke count instead of one too many. A manual +/−
-  below still works with no location attached, for when GPS isn't
-  available or wanted.
+- The floating button on the map has two modes — wait, it's not floating
+  anymore. It started as a circular button overlaying the map, but that
+  depended on stacking cleanly on top of a Leaflet instance's own internal
+  layout, and broke in practice (visible in testing, then reported as
+  fully missing after a deploy). Rather than keep patching that pattern,
+  it's now a plain full-width button in normal document flow directly
+  below the map — same two modes, same colors/icons, just not floating.
+  The **first** tap on a hole is **Start hole** (flag icon, sand-colored)
+  — it marks the tee and deliberately does **not** count as a stroke.
+  Every tap after that is **Track shot** (crosshair icon, fairway-colored)
+  and does count. That split exists specifically so "mark the tee, then
+  track every shot" produces an accurate stroke count instead of one too
+  many. A manual +/− below still works with no location attached, for
+  when GPS isn't available or wanted.
+- The map itself is now wrapped defensively: if Leaflet or a tile/marker
+  call ever throws, it falls back to a plain placeholder instead of
+  breaking the rest of the screen — shot tracking and scoring keep working
+  either way, since the map is a display layer on top of already-saved
+  data, not a dependency of it.
 - A compact scorecard strip runs across the top of the screen — every hole
   in the round, tap any one to jump straight to it, current hole
   highlighted, running total at the end.
@@ -234,6 +254,14 @@ work in most browsers — use a local server.
    branch," branch `main`, folder `/ (root)`.
 4. Your app will be live at `https://<your-username>.github.io/<repo-name>/`
    within a minute or two.
+
+**After every redeploy, hard-refresh** (Cmd+Shift+R / Ctrl+Shift+R) before
+testing — `index.html` loads `css/styles.css` and `js/app.js` with a `?v=`
+query string specifically so a normal refresh doesn't serve a stale cached
+copy, but a hard refresh is still the reliable way to be sure you're
+looking at what you just pushed, not a leftover from before. If you make
+your own edits going forward, bump the `?v=` number in `index.html` so
+this keeps working.
 
 ## What to try once it's deployed
 

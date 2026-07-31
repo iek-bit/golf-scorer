@@ -61,7 +61,7 @@ const NEARBY_RADII_MI = [25, 50, 100];
  * @param {{lat: number, lng: number, limit?: number}} args
  * @returns {Promise<{externalId, name, city, state, lat, lng, par}[]>}
  */
-export async function searchNearbyCourses({ lat, lng, limit = 15 } = {}) {
+export async function searchNearbyCourses({ lat, lng, limit = 30 } = {}) {
   for (const radiusMi of NEARBY_RADII_MI) {
     const results = await searchCourses({ lat, lng, radiusMi, limit });
     if (results.length) return results;

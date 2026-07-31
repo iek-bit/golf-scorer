@@ -2,7 +2,7 @@ import { storage } from '../storage.js';
 import { computeStats } from '../stats.js';
 import { tile } from '../components/tile.js';
 import { searchNearbyCourses } from '../api/opengolfapi.js';
-import { getCurrentPosition } from '../geo.js';
+import { getCurrentPosition, sortByDistance } from '../geo.js';
 import { SATELLITE_TILE_URL, SATELLITE_ATTRIBUTION } from '../mapConfig.js';
 
 export async function renderHome(outlet) {
@@ -39,37 +39,59 @@ function computeHeroState(rounds, courses) {
   return { mode: 'start', course: fallbackCourse };
 }
 
+// Hero tile markup is hand-built (not using the shared tile() helper)
+// because it needs a directions button as a sibling of the main tap
+// target, not nested inside it — nesting an <a>/<button> inside another
+// <a> is invalid HTML and behaves inconsistently across browsers. The
+// primary link is an absolutely-positioned overlay filling the whole
+// tile; the directions button sits on top of it in its own corner, so
+// tapping it doesn't also trigger the tile's own navigation.
+function heroTileMarkup({ href, extraClass, ariaLabel, eyebrow, courseLabel, cta, location }) {
+  return `
+    <div class="tile tile--hero ${extraClass || ''}">
+      <div id="hero-tile-map" class="tile-map"></div>
+      <a class="tile-primary-link" href="${href}" aria-label="${escapeHtml(ariaLabel)}"></a>
+      ${directionsButtonHtml(location)}
+      <span class="hero-eyebrow">${escapeHtml(eyebrow)}</span>
+      <span class="hero-course">${escapeHtml(courseLabel)}</span>
+      <span class="hero-cta">${escapeHtml(cta)}</span>
+    </div>
+  `;
+}
+
+function directionsButtonHtml(location) {
+  if (!location) return '';
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`;
+  return `
+    <a class="directions-btn" href="${url}" target="_blank" rel="noopener" aria-label="Get directions" onclick="event.stopPropagation()">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+    </a>
+  `;
+}
+
 function renderRoundTile(state) {
   if (state.mode === 'continue') {
-    return tile({
+    return heroTileMarkup({
       href: `#/round/${state.roundId}/play`,
-      extraClass: 'tile--hero',
       ariaLabel: 'Continue round in progress',
-      innerHtml: `
-        <div id="hero-tile-map" class="tile-map"></div>
-        <span class="hero-eyebrow">Round in progress</span>
-        <span class="hero-course">${escapeHtml(state.course ? state.course.name : 'Unknown course')}</span>
-        <span class="hero-cta">Continue round →</span>
-      `,
+      eyebrow: 'Round in progress',
+      courseLabel: state.course ? state.course.name : 'Unknown course',
+      cta: 'Continue round →',
+      location: state.course?.location || null,
     });
   }
 
   // "resolving" means we're actively checking for a GPS-nearer course —
   // this is a real in-progress state, not a dead end, so it gets its own
   // label rather than reusing the final "Find a course" copy.
-  const eyebrow = state.course ? 'Start round' : 'Locating you…';
-  const courseLabel = state.course ? state.course.name : 'Finding nearest course…';
-
-  return tile({
+  return heroTileMarkup({
     href: '#/round/new',
-    extraClass: `tile--hero ${state.course ? '' : 'tile--hero-empty'}`,
+    extraClass: state.course ? '' : 'tile--hero-empty',
     ariaLabel: state.course ? `Start a new round at ${state.course.name}` : 'Find a course to play',
-    innerHtml: `
-      <div id="hero-tile-map" class="tile-map"></div>
-      <span class="hero-eyebrow">${escapeHtml(eyebrow)}</span>
-      <span class="hero-course">${escapeHtml(courseLabel)}</span>
-      <span class="hero-cta">New round →</span>
-    `,
+    eyebrow: state.course ? 'Start round' : 'Locating you…',
+    courseLabel: state.course ? state.course.name : 'Finding nearest course…',
+    cta: 'New round →',
+    location: state.course?.location || null,
   });
 }
 
@@ -93,8 +115,13 @@ async function resolveNearestAndUpdate(fallbackCourse) {
   }
   try {
     const pos = await getCurrentPosition();
-    const [nearest] = await searchNearbyCourses({ lat: pos.lat, lng: pos.lng, limit: 1 });
-    finalizeTile(fallbackCourse, nearest);
+    // Never trust the API's own ordering (or a tight limit) to mean
+    // "closest first" — fetch a real batch and sort it ourselves by
+    // actual calculated distance. Asking for just 1 result and assuming
+    // it was the closest was the bug that suggested a course an hour away.
+    const results = await searchNearbyCourses({ lat: pos.lat, lng: pos.lng, limit: 30 });
+    const sorted = sortByDistance(pos, results, (c) => (c.lat != null ? { lat: c.lat, lng: c.lng } : null));
+    finalizeTile(fallbackCourse, sorted[0] || null);
   } catch {
     finalizeTile(fallbackCourse, null); // denied, timed out, or no signal — fall back, don't hang
   }
@@ -117,16 +144,13 @@ async function finalizeTile(fallbackCourse, nearest) {
   const known = localCourses.find((c) => c.externalId === nearest.externalId);
   const loc = known?.location || (nearest.lat != null ? { lat: nearest.lat, lng: nearest.lng } : null);
 
-  slot.innerHTML = tile({
+  slot.innerHTML = heroTileMarkup({
     href: '#/round/new',
-    extraClass: 'tile--hero',
     ariaLabel: `Start a new round at ${nearest.name}, the nearest course`,
-    innerHtml: `
-      <div id="hero-tile-map" class="tile-map"></div>
-      <span class="hero-eyebrow">Nearest course</span>
-      <span class="hero-course">${escapeHtml(known ? known.name : nearest.name)}</span>
-      <span class="hero-cta">New round →</span>
-    `,
+    eyebrow: 'Nearest course',
+    courseLabel: known ? known.name : nearest.name,
+    cta: 'New round →',
+    location: loc,
   });
   mountHeroMap(loc);
 }
@@ -137,18 +161,22 @@ async function finalizeTile(fallbackCourse, nearest) {
 function mountHeroMap(loc) {
   const container = document.getElementById('hero-tile-map');
   if (!container || !loc || typeof L === 'undefined') return;
-  const map = L.map(container, {
-    zoomControl: false,
-    attributionControl: false,
-    dragging: false,
-    scrollWheelZoom: false,
-    doubleClickZoom: false,
-    boxZoom: false,
-    keyboard: false,
-    touchZoom: false,
-    tap: false,
-  }).setView([loc.lat, loc.lng], 16);
-  L.tileLayer(SATELLITE_TILE_URL, { maxZoom: 19, attribution: SATELLITE_ATTRIBUTION }).addTo(map);
+  try {
+    const map = L.map(container, {
+      zoomControl: false,
+      attributionControl: false,
+      dragging: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      boxZoom: false,
+      keyboard: false,
+      touchZoom: false,
+      tap: false,
+    }).setView([loc.lat, loc.lng], 16);
+    L.tileLayer(SATELLITE_TILE_URL, { maxZoom: 19, attribution: SATELLITE_ATTRIBUTION }).addTo(map);
+  } catch (err) {
+    console.error('Hero map render failed:', err);
+  }
 }
 
 // --- Tile 2: a handful of mini stats; tapping opens the full stats screen.
