@@ -76,54 +76,82 @@
   --radius-lg: 28px;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 3px 1px rgba(0, 0, 0, 0.1);
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  /* Roboto is THE Material typeface — swapping it in (over this app's
+     branded Fraunces/Manrope pairing) is most of what makes M3 actually
+     read as Google's design language rather than a recolored version of
+     this app's own one. Scores stay in --font-mono (IBM Plex Mono) in
+     every design language — that's a scorecard convention, not branding. */
+  --font-display: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 [data-design='m3'][data-theme='light'] {
-  --color-bg: #fdf8f6;
-  --color-surface: #fffbff;
-  --color-surface-variant: #e7e0e0;
+  /* M3's "surface container" tones aren't neutral gray — they're the
+     primary hue heavily desaturated and lightened, which is why Google's
+     UI always reads as faintly tinted rather than flat white/gray. Built
+     from --color-fairway (or the active palette) via color-mix, so a
+     custom palette re-tints these automatically instead of staying gray. */
+  --color-bg: color-mix(in srgb, var(--color-fairway) 4%, #fbf9f6);
+  --color-surface: color-mix(in srgb, var(--color-fairway) 3%, #fffbff);
+  --color-surface-variant: color-mix(in srgb, var(--color-fairway) 14%, #e7e0e0);
   --color-ink: #1c1b1b;
   --color-ink-muted: #5c5f5a;
-  --color-line: #cac5c4;
+  --color-line: color-mix(in srgb, var(--color-fairway) 10%, #cac5c4);
 }
 
 [data-design='m3'][data-theme='dark'] {
-  --color-bg: #131313;
-  --color-surface: #201f1f;
-  --color-surface-variant: #454746;
+  --color-bg: color-mix(in srgb, var(--color-fairway) 10%, #131313);
+  --color-surface: color-mix(in srgb, var(--color-fairway) 8%, #201f1f);
+  --color-surface-variant: color-mix(in srgb, var(--color-fairway) 22%, #454746);
   --color-ink: #e6e2e1;
   --color-ink-muted: #b8bcb6;
-  --color-line: #3a3d3a;
+  --color-line: color-mix(in srgb, var(--color-fairway) 18%, #3a3d3a);
 }
 
 [data-design='glass'] {
-  --radius-sm: 14px;
-  --radius-md: 20px;
-  --radius-lg: 32px;
-  --shadow-card: 0 8px 30px rgba(20, 20, 18, 0.1);
+  --radius-sm: 16px;
+  --radius-md: 22px;
+  --radius-lg: 34px;
+  --radius-capsule: 999px;
+  --shadow-card: 0 12px 34px rgba(20, 20, 18, 0.14);
+  --shadow-floating: 0 14px 38px rgba(10, 14, 12, 0.22);
   --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  /* SF Pro is Apple's system font; -apple-system/BlinkMacSystemFont
+     resolve to it natively on Apple devices with zero network fetch, and
+     fall back gracefully everywhere else. Same reasoning as Roboto above
+     for M3 — the typeface is a big, free part of "actually looking like
+     the platform" that a recolored card grid can't fake. */
+  --font-display: -apple-system, 'SF Pro Display', BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --font-body: -apple-system, 'SF Pro Text', BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
 }
 
 [data-design='glass'][data-theme='light'] {
   --color-bg: #eef1ec;
-  --color-surface: rgba(255, 255, 255, 0.55);
+  /* Genuinely translucent — low enough opacity that blurred page content
+     shows through, the way real Liquid Glass panels do, not just a
+     tinted solid card with a blur filter nobody can see the effect of. */
+  --color-surface: rgba(255, 255, 255, 0.42);
   --color-ink: #1a1c1b;
   --color-ink-muted: #5c6158;
-  --color-line: rgba(255, 255, 255, 0.6);
-  --glass-highlight: rgba(255, 255, 255, 0.75);
-  --glass-body-wash: radial-gradient(circle at 15% 0%, rgba(87, 176, 133, 0.16), transparent 45%),
-    radial-gradient(circle at 85% 100%, rgba(70, 112, 127, 0.14), transparent 50%);
+  --color-line: rgba(255, 255, 255, 0.55);
+  --glass-highlight: rgba(255, 255, 255, 0.9);
+  --glass-track: rgba(120, 124, 116, 0.16);
+  --glass-thumb: rgba(255, 255, 255, 0.92);
+  --glass-body-wash: radial-gradient(circle at 15% 0%, rgba(87, 176, 133, 0.2), transparent 45%),
+    radial-gradient(circle at 85% 100%, rgba(70, 112, 127, 0.18), transparent 50%);
 }
 
 [data-design='glass'][data-theme='dark'] {
-  --color-bg: #0f1210;
-  --color-surface: rgba(36, 38, 36, 0.55);
+  --color-bg: #0c0e0c;
+  --color-surface: rgba(40, 42, 40, 0.4);
   --color-ink: #f1f0ea;
   --color-ink-muted: #9ba098;
-  --color-line: rgba(255, 255, 255, 0.12);
-  --glass-highlight: rgba(255, 255, 255, 0.16);
-  --glass-body-wash: radial-gradient(circle at 15% 0%, rgba(63, 124, 90, 0.28), transparent 45%),
-    radial-gradient(circle at 85% 100%, rgba(109, 151, 166, 0.2), transparent 50%);
+  --color-line: rgba(255, 255, 255, 0.14);
+  --glass-highlight: rgba(255, 255, 255, 0.22);
+  --glass-track: rgba(255, 255, 255, 0.14);
+  --glass-thumb: rgba(230, 230, 226, 0.95);
+  --glass-body-wash: radial-gradient(circle at 15% 0%, rgba(63, 124, 90, 0.32), transparent 45%),
+    radial-gradient(circle at 85% 100%, rgba(109, 151, 166, 0.24), transparent 50%);
 }
 
 /* ============================================================
@@ -1363,22 +1391,68 @@ h2 {
 
 /* ============================================================
    Material 3 — component treatment
-   Token remapping (radius/shadow, above) handles most of the shift.
-   What's left: pill-shaped buttons/segmented controls, tonal (flat)
-   secondary buttons, and a real state-layer ripple on press (see
-   js/ripple.js — delegated at the document level, only active here).
+   Token remapping (radius/shadow/tonal surface tint/Roboto, above)
+   carries most of the shift. What's left: pill-shaped buttons, a real
+   connected SegmentedButtonRow (M3's segmented control is one outlined
+   stadium with internal dividers and a tonal fill on the selected
+   segment — not a row of separately-pilled buttons, which is what
+   this used to render), tonal (flat) secondary buttons, and a real
+   state-layer ripple on press (see js/ripple.js — delegated at the
+   document level, only active here).
    ============================================================ */
 
 [data-design='m3'] .btn,
-[data-design='m3'] .track-shot-btn,
-[data-design='m3'] .segmented,
-[data-design='m3'] .segment-btn {
+[data-design='m3'] .track-shot-btn {
   border-radius: 999px;
 }
 
 [data-design='m3'] .btn-secondary {
   background: var(--color-surface-variant);
   box-shadow: none;
+}
+
+/* Real M3 SegmentedButtonRow: one outlined stadium, zero gap, a hairline
+   divider between segments, and a tonal (not solid) fill + primary-colored
+   label on whichever segment is selected. */
+[data-design='m3'] .segmented {
+  background: transparent;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 0;
+  gap: 0;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+[data-design='m3'] .segment-btn {
+  border-radius: 0;
+  border-right: 1px solid var(--color-line);
+  color: var(--color-ink);
+  padding: 10px 0;
+}
+
+[data-design='m3'] .segment-btn:last-child {
+  border-right: none;
+}
+
+[data-design='m3'] .segment-btn.is-active {
+  background: var(--color-surface-variant);
+  color: var(--color-fairway);
+}
+
+/* M3's characteristic tonal "surface container" cards — a step up in
+   tone from the page background rather than a flat white/neutral card,
+   which is what gives Google's UI its faint color-everywhere look. The
+   hero tile keeps its own photographic treatment. */
+[data-design='m3'] .tile:not(.tile--hero):not(.tile--hero-empty),
+[data-design='m3'] .hole-card,
+[data-design='m3'] .grid-cell,
+[data-design='m3'] .stat-block,
+[data-design='m3'] .par-row,
+[data-design='m3'] .score-row,
+[data-design='m3'] .list-row,
+[data-design='m3'] .strip-cell {
+  background: color-mix(in srgb, var(--color-fairway) 5%, var(--color-surface));
 }
 
 [data-design='m3'] .btn,
@@ -1421,11 +1495,12 @@ h2 {
 
 /* ============================================================
    Liquid Glass — component treatment
-   Every card/row/input becomes a translucent, blurred pane over the
-   page's soft color wash (--glass-body-wash, set on <body> below), with
-   a thin light rim (inset highlight) standing in for a specular edge.
-   The hero tile keeps its own photographic treatment — excluded here —
-   since it's meant to read as a photo card, not frosted glass.
+   Real Apple "glass" chrome is genuinely see-through (blurred content
+   visible behind it, not just a tinted card), floats above the page as
+   distinct capsules/panels rather than sitting flush with the edges, and
+   its controls (segmented pickers, switches) look like the real iOS ones.
+   The hero tile keeps its own photographic treatment — excluded from the
+   generic glass surface list — since it's meant to read as a photo card.
    ============================================================ */
 
 [data-design='glass'] body {
@@ -1433,9 +1508,20 @@ h2 {
   background-attachment: fixed;
 }
 
+/* The header stops being an edge-to-edge bar and becomes a floating
+   capsule inset from the screen edges — the single biggest visual tell
+   that separates real iOS/macOS chrome from "a bar with blur() on it." */
 [data-design='glass'] .app-header {
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  top: 12px;
+  margin: 0 12px;
+  padding: 0 18px;
+  min-height: 50px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-capsule);
+  background: var(--color-surface);
+  backdrop-filter: blur(36px) saturate(190%);
+  -webkit-backdrop-filter: blur(36px) saturate(190%);
+  box-shadow: var(--shadow-floating), inset 0 1px 0 var(--glass-highlight);
 }
 
 [data-design='glass'] .tile:not(.tile--hero):not(.tile--hero-empty),
@@ -1448,7 +1534,6 @@ h2 {
 [data-design='glass'] .grid-cell,
 [data-design='glass'] .stat-block,
 [data-design='glass'] .strip-cell,
-[data-design='glass'] .segmented,
 [data-design='glass'] .icon-btn,
 [data-design='glass'] .hole-card,
 [data-design='glass'] .par-confirm-btn,
@@ -1458,18 +1543,48 @@ h2 {
 [data-design='glass'] .search-input,
 [data-design='glass'] .color-input-field input[type='color'] {
   background: var(--color-surface);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(190%);
+  -webkit-backdrop-filter: blur(30px) saturate(190%);
   border: 1px solid var(--color-line);
   box-shadow: var(--shadow-card), inset 0 1px 0 var(--glass-highlight);
 }
 
 [data-design='glass'] .btn-primary {
-  box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 [data-design='glass'] .strip-total {
   background: transparent;
+}
+
+/* Real iOS segmented control: a frosted capsule *track*, with the
+   selected segment rendered as a light, shadowed "thumb" floating inside
+   it — not a solid brand-colored fill like Standard/M3 use. */
+[data-design='glass'] .segmented {
+  background: var(--glass-track);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: none;
+  border-radius: var(--radius-capsule);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+[data-design='glass'] .segment-btn {
+  border-radius: var(--radius-capsule);
+  color: var(--color-ink-muted);
+  transition: background-color 0.22s var(--ease-standard), color 0.22s var(--ease-standard), box-shadow 0.22s var(--ease-standard);
+}
+
+[data-design='glass'] .segment-btn.is-active {
+  background: var(--glass-thumb);
+  color: var(--color-ink);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.1);
+}
+
+/* The toggle switch already mirrors iOS's own UISwitch shape — just give
+   its thumb a touch more glassy dimension to match everything else. */
+[data-design='glass'] .toggle-switch::after {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 /* ============================================================
