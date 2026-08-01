@@ -90,9 +90,10 @@ default, and manually-added courses now capture a location too (your
 position when you save it), so they can show up as "nearest" just like
 API-sourced ones. Worth knowing:
 
-- We call exactly **one** OpenGolfAPI endpoint: their plain, keyless `GET
-  /v1/courses/search`. Nothing else — see the comment at the top of
-  `js/api/opengolfapi.js`.
+- We call two OpenGolfAPI endpoints, both plain and keyless: `GET
+  /v1/courses/search` (name search, and as a coverage supplement — see
+  below) and `GET /v1/courses/state/:code` (the real source of "nearest").
+  Nothing else — see the comment at the top of `js/api/opengolfapi.js`.
 - Their platform bundles a lot more than a course database (an email-hash-
   derived "OpenGolf ID," a Bitcoin-anchored verification chain, asset
   minting) and their docs actively court AI coding agents to auto-integrate
@@ -107,10 +108,25 @@ API-sourced ones. Worth knowing:
 - Satellite imagery (the hero tile background, the play-screen map) comes
   from Esri World Imagery — free, keyless tiles, no billing account
   required (unlike Google Maps — see `js/mapConfig.js`).
-- A fixed search radius made "nearest course" look broken in areas with
-  thin OpenGolfAPI coverage, so nearby search now escalates — 25mi, then
-  50, then 100 — and stops at the first radius that finds anything
-  (`searchNearbyCourses` in `js/api/opengolfapi.js`).
+- The location-based `?lat&lng&radius_mi` mode of `/v1/courses/search`
+  turned out not to be trustworthy for "find the closest one": a
+  confirmed-real, findable-by-name course was consistently missing from
+  its results near home, on both desktop and phone — most likely because
+  it doesn't reliably sort by true distance before applying `limit`
+  (unverifiable from outside the API; the docs don't say either way). So
+  `searchNearbyCourses` no longer depends on that endpoint's own ranking
+  at all: it resolves your state from lat/lng against a small built-in
+  bounding-box table (`js/usStates.js` — no geocoding API, no network
+  call, no rate limit), pulls that *entire* state's course list via the
+  unambiguous `/v1/courses/state/{code}` (paginated to get all of it),
+  and ranks that itself with the same haversine math used everywhere else
+  in this app. The old radius search is still called too and merged in
+  (deduped by id) purely as extra coverage for any course OpenGolfAPI
+  hasn't tagged with a state — but it's no longer what "nearest" is
+  actually trusted to mean. A state's course list is one-time-fetched per
+  session (not cached to storage), and a bounding box near a state line
+  can match 2 states, which is intentional — it costs one extra fetch and
+  never drops a real result the way a too-narrow match would.
 - Every result list — nearby search, name search, and your own saved
   courses — is sorted nearest-first once your position is known
   (`sortByDistance` in `js/geo.js`), not just the dedicated "near me" flow.

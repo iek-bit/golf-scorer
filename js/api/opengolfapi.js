@@ -1,15 +1,31 @@
 // api/opengolfapi.js
 //
-// Deliberately thin wrapper around ONE endpoint: OpenGolfAPI's plain,
-// keyless course search (GET /v1/courses/search). That's it.
+// Wrapper around OpenGolfAPI's plain, keyless course endpoints — no
+// sign-in, no dev key, no writes.
 //
 // OpenGolfAPI's broader platform bundles an identity system ("OpenGolf
 // ID," derived from a hash of your email), a Bitcoin-anchored verification
 // chain, and an asset-minting system — none of which this app touches or
-// needs. We only ever call the read-only search route below, no sign-in,
-// no dev key, no writes. If that endpoint ever changes shape or goes away,
-// every caller here fails soft (empty array), and "add a course manually"
+// needs. If these endpoints ever change shape or go away, every caller
+// here fails soft (empty array), and "add a course manually"
 // (js/views/courses.js) still works as a complete fallback.
+//
+// Why "nearby" doesn't just call /courses/search?lat&lng&radius_mi and
+// trust it: that endpoint returned real results, but not reliably the
+// *closest* ones — a manually-confirmed-real course (findable by name)
+// was consistently missing from its location-search results close to
+// home, on multiple devices. Whether that's the server not sorting by
+// true distance, or truncating to `limit` before it does, isn't
+// something we can fix or fully verify from outside the API — so instead
+// of trusting it, searchNearbyCourses() below pulls the user's *entire*
+// home state via /courses/state/{code} (a plain, unambiguous listing,
+// paginated to get all of it) and ranks that ourselves with the same
+// haversine math already used everywhere else in this app. The old
+// radius search is kept and merged in too, purely as extra coverage for
+// courses OpenGolfAPI hasn't tagged with a state.
+
+import { statesContainingPoint } from '../usStates.js';
+import { haversineMeters } from '../geo.js';
 
 const BASE_URL = 'https://api.opengolfapi.org';
 
@@ -21,6 +37,18 @@ async function safeFetchJson(url) {
   } catch {
     return null;
   }
+}
+
+function mapCourse(c) {
+  return {
+    externalId: c.id,
+    name: c.course_name || c.name || 'Unnamed course',
+    city: c.city || null,
+    state: c.state || null,
+    lat: c.latitude,
+    lng: c.longitude,
+    par: c.par ?? c.par_total ?? null,
+  };
 }
 
 /**
@@ -39,32 +67,54 @@ export async function searchCourses({ q, lat, lng, radiusMi = 25, limit = 15 } =
 
   const data = await safeFetchJson(`${BASE_URL}/v1/courses/search?${params.toString()}`);
   if (!data || !Array.isArray(data.courses)) return [];
-
-  return data.courses.map((c) => ({
-    externalId: c.id,
-    name: c.course_name || c.name || 'Unnamed course',
-    city: c.city || null,
-    state: c.state || null,
-    lat: c.latitude,
-    lng: c.longitude,
-    par: c.par ?? c.par_total ?? null,
-  }));
+  return data.courses.map(mapCourse);
 }
 
-// A fixed 25mi radius comes up empty in areas where OpenGolfAPI's
-// coverage is thin, which made "nearest course" look broken rather than
-// just under-covered. This tries progressively wider radii and returns
-// the first non-empty result set.
-const NEARBY_RADII_MI = [25, 50, 100];
+// PAGE_SIZE / MAX_PAGES bound how much we'll fetch for one state — a US
+// state tops out around ~1,600 courses (TX); at 200/page that's 8 calls,
+// worst case, for the single largest state in the country. Most states
+// finish in 1-2 calls.
+const STATE_PAGE_SIZE = 200;
+const STATE_MAX_PAGES = 10;
+
+/**
+ * Every course in one US state, unambiguous and unfiltered by distance —
+ * the thing /courses/search's lat/lng mode was supposed to give us a
+ * ranked subset of, but couldn't be trusted to.
+ * @returns {Promise<{externalId, name, city, state, lat, lng, par}[]>}
+ */
+export async function searchCoursesByState(code) {
+  const all = [];
+  for (let page = 0; page < STATE_MAX_PAGES; page++) {
+    const offset = page * STATE_PAGE_SIZE;
+    const data = await safeFetchJson(`${BASE_URL}/v1/courses/state/${code}?limit=${STATE_PAGE_SIZE}&offset=${offset}`);
+    if (!data || !Array.isArray(data.courses) || !data.courses.length) break;
+    all.push(...data.courses.map(mapCourse));
+    if (typeof data.total === 'number' && all.length >= data.total) break;
+    if (data.courses.length < STATE_PAGE_SIZE) break; // short page = last page
+  }
+  return all;
+}
 
 /**
  * @param {{lat: number, lng: number, limit?: number}} args
  * @returns {Promise<{externalId, name, city, state, lat, lng, par}[]>}
  */
 export async function searchNearbyCourses({ lat, lng, limit = 30 } = {}) {
-  for (const radiusMi of NEARBY_RADII_MI) {
-    const results = await searchCourses({ lat, lng, radiusMi, limit });
-    if (results.length) return results;
+  const stateCodes = statesContainingPoint(lat, lng); // usually 1, sometimes 2 near a border, rarely 0
+
+  const [stateBatches, radiusResults] = await Promise.all([
+    Promise.all(stateCodes.map((code) => searchCoursesByState(code))),
+    searchCourses({ lat, lng, radiusMi: 50, limit: 100 }), // extra coverage; see module note above
+  ]);
+
+  const byId = new Map();
+  for (const course of [...stateBatches.flat(), ...radiusResults]) {
+    if (course.lat == null || course.lng == null) continue; // can't rank what we can't place
+    if (!byId.has(course.externalId)) byId.set(course.externalId, course);
   }
-  return [];
+
+  return [...byId.values()]
+    .sort((a, b) => haversineMeters({ lat, lng }, { lat: a.lat, lng: a.lng }) - haversineMeters({ lat, lng }, { lat: b.lat, lng: b.lng }))
+    .slice(0, limit);
 }

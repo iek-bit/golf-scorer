@@ -141,12 +141,13 @@ async function resolveNearestAndUpdate(fallbackCourse) {
     candidates.sort((a, b) => haversineMeters(pos, a.location) - haversineMeters(pos, b.location));
 
     const winner = candidates[0];
+    const distanceMi = haversineMeters(pos, winner.location) / 1609.344;
     // A local course is already a real saved record; an API result needs
     // to become one (or reuse an existing one, deduped by externalId) so
     // the hero tile can link straight to "start round at this course"
     // instead of dropping the user into search again.
     const nearestCourse = winner.kind === 'local' ? winner.course : await ensureLocalCourse(winner.course, localCourses);
-    finalizeTile(fallbackCourse, nearestCourse);
+    finalizeTile(fallbackCourse, nearestCourse, distanceMi);
   } catch {
     finalizeTile(fallbackCourse, null); // denied, timed out, or no signal — fall back, don't hang
   }
@@ -155,7 +156,7 @@ async function resolveNearestAndUpdate(fallbackCourse) {
 // Renders the tile's final state once we know whether a GPS-nearest
 // course was found: the nearest course if we got one, otherwise whatever
 // fallback we already had (or the "Find a course" CTA if there was none).
-function finalizeTile(fallbackCourse, nearestCourse) {
+function finalizeTile(fallbackCourse, nearestCourse, distanceMi) {
   const slot = document.getElementById('round-tile-slot');
   if (!slot) return;
 
@@ -165,10 +166,16 @@ function finalizeTile(fallbackCourse, nearestCourse) {
     return;
   }
 
+  // The distance is shown right on the tile (not just implied by the
+  // "nearest" label) specifically so a wrong-looking suggestion is
+  // immediately checkable against a map — "3.1 mi away" you can verify
+  // yourself, "nearest course" alone you just have to trust.
+  const eyebrow = distanceMi != null ? `Nearest course · ${formatMiles(distanceMi)} away` : 'Nearest course';
+
   slot.innerHTML = heroTileMarkup({
     href: `#/round/new?course=${nearestCourse.id}`,
     ariaLabel: `Start a new round at ${nearestCourse.name}, the nearest course`,
-    eyebrow: 'Nearest course',
+    eyebrow,
     courseLabel: nearestCourse.name,
     cta: 'New round →',
     location: nearestCourse.location,
@@ -268,6 +275,11 @@ export function totalForRound(round, course) {
 export function toParText(toPar) {
   if (toPar === 0) return 'E';
   return toPar > 0 ? `+${toPar}` : `${toPar}`;
+}
+
+function formatMiles(mi) {
+  if (mi < 0.1) return 'under 0.1 mi';
+  return `${mi < 10 ? mi.toFixed(1) : Math.round(mi)} mi`;
 }
 
 export function escapeHtml(str) {
