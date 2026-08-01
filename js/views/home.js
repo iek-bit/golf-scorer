@@ -2,8 +2,9 @@ import { storage } from '../storage.js';
 import { computeStats } from '../stats.js';
 import { tile } from '../components/tile.js';
 import { searchNearbyCourses } from '../api/opengolfapi.js';
-import { getCurrentPosition, sortByDistance } from '../geo.js';
+import { getCurrentPosition, haversineMeters } from '../geo.js';
 import { SATELLITE_TILE_URL, SATELLITE_ATTRIBUTION } from '../mapConfig.js';
+import { ensureLocalCourse } from '../courseResolve.js';
 
 export async function renderHome(outlet) {
   const [rounds, courses] = await Promise.all([storage.getRounds(), storage.getCourses()]);
@@ -83,9 +84,12 @@ function renderRoundTile(state) {
 
   // "resolving" means we're actively checking for a GPS-nearer course —
   // this is a real in-progress state, not a dead end, so it gets its own
-  // label rather than reusing the final "Find a course" copy.
+  // label rather than reusing the final "Find a course" copy. Course id
+  // is passed along on the link itself (see renderNewRound in
+  // newRound.js) so tapping the tile preselects it instead of landing on
+  // a blank searchable list.
   return heroTileMarkup({
-    href: '#/round/new',
+    href: state.course ? `#/round/new?course=${state.course.id}` : '#/round/new',
     extraClass: state.course ? '' : 'tile--hero-empty',
     ariaLabel: state.course ? `Start a new round at ${state.course.name}` : 'Find a course to play',
     eyebrow: state.course ? 'Start round' : 'Locating you…',
@@ -115,13 +119,34 @@ async function resolveNearestAndUpdate(fallbackCourse) {
   }
   try {
     const pos = await getCurrentPosition();
-    // Never trust the API's own ordering (or a tight limit) to mean
-    // "closest first" — fetch a real batch and sort it ourselves by
-    // actual calculated distance. Asking for just 1 result and assuming
-    // it was the closest was the bug that suggested a course an hour away.
-    const results = await searchNearbyCourses({ lat: pos.lat, lng: pos.lng, limit: 30 });
-    const sorted = sortByDistance(pos, results, (c) => (c.lat != null ? { lat: c.lat, lng: c.lng } : null));
-    finalizeTile(fallbackCourse, sorted[0] || null);
+
+    // The real bug behind "the suggested course isn't the nearest one":
+    // this used to rank OpenGolfAPI results only against each other, so a
+    // course you'd added manually — which can absolutely be your actual
+    // nearest course — never got a chance to win. Now both sources are
+    // merged into one candidate list before ranking by real calculated
+    // distance (never the API's own ordering, and never a 1-result ask
+    // that just assumes it was the closest).
+    const localCourses = await storage.getCourses();
+    const apiResults = await searchNearbyCourses({ lat: pos.lat, lng: pos.lng, limit: 30 });
+
+    const candidates = [
+      ...localCourses.filter((c) => c.location).map((c) => ({ kind: 'local', course: c, location: c.location })),
+      ...apiResults.filter((c) => c.lat != null).map((c) => ({ kind: 'api', course: c, location: { lat: c.lat, lng: c.lng } })),
+    ];
+    if (!candidates.length) {
+      finalizeTile(fallbackCourse, null);
+      return;
+    }
+    candidates.sort((a, b) => haversineMeters(pos, a.location) - haversineMeters(pos, b.location));
+
+    const winner = candidates[0];
+    // A local course is already a real saved record; an API result needs
+    // to become one (or reuse an existing one, deduped by externalId) so
+    // the hero tile can link straight to "start round at this course"
+    // instead of dropping the user into search again.
+    const nearestCourse = winner.kind === 'local' ? winner.course : await ensureLocalCourse(winner.course, localCourses);
+    finalizeTile(fallbackCourse, nearestCourse);
   } catch {
     finalizeTile(fallbackCourse, null); // denied, timed out, or no signal — fall back, don't hang
   }
@@ -130,29 +155,25 @@ async function resolveNearestAndUpdate(fallbackCourse) {
 // Renders the tile's final state once we know whether a GPS-nearest
 // course was found: the nearest course if we got one, otherwise whatever
 // fallback we already had (or the "Find a course" CTA if there was none).
-async function finalizeTile(fallbackCourse, nearest) {
+function finalizeTile(fallbackCourse, nearestCourse) {
   const slot = document.getElementById('round-tile-slot');
   if (!slot) return;
 
-  if (!nearest) {
+  if (!nearestCourse) {
     slot.innerHTML = renderRoundTile({ mode: 'start', course: fallbackCourse });
     mountHeroMap(fallbackCourse?.location || null);
     return;
   }
 
-  const localCourses = await storage.getCourses();
-  const known = localCourses.find((c) => c.externalId === nearest.externalId);
-  const loc = known?.location || (nearest.lat != null ? { lat: nearest.lat, lng: nearest.lng } : null);
-
   slot.innerHTML = heroTileMarkup({
-    href: '#/round/new',
-    ariaLabel: `Start a new round at ${nearest.name}, the nearest course`,
+    href: `#/round/new?course=${nearestCourse.id}`,
+    ariaLabel: `Start a new round at ${nearestCourse.name}, the nearest course`,
     eyebrow: 'Nearest course',
-    courseLabel: known ? known.name : nearest.name,
+    courseLabel: nearestCourse.name,
     cta: 'New round →',
-    location: loc,
+    location: nearestCourse.location,
   });
-  mountHeroMap(loc);
+  mountHeroMap(nearestCourse.location);
 }
 
 // A non-interactive satellite snapshot behind the hero tile's text —

@@ -16,6 +16,19 @@ function isDarkFor(mode) {
 
 function applyTheme(mode) {
   document.documentElement.setAttribute('data-theme', isDarkFor(mode) ? 'dark' : 'light');
+  syncThemeColorMeta();
+}
+
+// Keeps the browser's own chrome (Android's status bar, Safari's address
+// bar tint) matching whatever --color-bg currently resolves to — which
+// depends on both light/dark *and* the design language (design.js calls
+// this too, after switching design), so switching to Liquid Glass's softer
+// background or Material 3's warm neutral updates the OS chrome to match,
+// not just the page content.
+export function syncThemeColorMeta() {
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--color-bg').trim();
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta && bg) meta.setAttribute('content', bg);
 }
 
 function updateToggleIcon(mode) {

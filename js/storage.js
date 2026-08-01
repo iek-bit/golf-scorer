@@ -12,6 +12,9 @@ const KEYS = {
   courses: 'golf.courses',
   rounds: 'golf.rounds',
   theme: 'golf.theme',
+  design: 'golf.design', // 'standard' | 'm3' | 'glass' — manual choice, used when designAuto is false
+  designAuto: 'golf.designAuto', // true = follow the device's OS family automatically
+  palette: 'golf.palette', // { id: 'fairway'|'ocean'|'sunset'|'slate'|'custom', primary, secondary, tertiary }
 };
 
 function read(key, fallback) {
@@ -81,12 +84,34 @@ export const storage = {
     write(KEYS.rounds, read(KEYS.rounds, []).filter((r) => r.id !== id));
   },
 
-  // --- theme preference ---
+  // --- theme preference (light/dark) ---
   async getThemePreference() {
     return read(KEYS.theme, null); // null = follow system setting
   },
   async saveThemePreference(mode) {
     write(KEYS.theme, mode);
+  },
+
+  // --- design language (Standard / Material 3 / Liquid Glass) ---
+  async getDesignPreference() {
+    return read(KEYS.design, 'standard'); // last manually-picked value (used when auto is off)
+  },
+  async saveDesignPreference(design) {
+    write(KEYS.design, design);
+  },
+  async getDesignAuto() {
+    return read(KEYS.designAuto, true); // default: match the device automatically
+  },
+  async saveDesignAuto(auto) {
+    write(KEYS.designAuto, auto);
+  },
+
+  // --- color palette ---
+  async getPalette() {
+    return read(KEYS.palette, null); // null = default Fairway palette
+  },
+  async savePalette(palette) {
+    write(KEYS.palette, palette);
   },
 
   // --- utility ---

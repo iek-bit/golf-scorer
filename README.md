@@ -13,14 +13,20 @@ deliberate: it deploys to GitHub Pages by just pushing the files, and keeps
 "limited backend coding" true for as long as possible.
 
 ```
-index.html          App shell: an empty header slot + the view outlet + Leaflet CDN tags
-css/styles.css       All styling — design tokens (light/dark) at the top
-js/app.js            Registers routes (each with header title/back target)
-js/router.js         Tiny hash-based router (#/, #/courses, #/round/:id/play, ...)
+index.html          App shell: an empty header slot + the view outlet + Leaflet CDN tags + PWA/icon tags
+manifest.webmanifest PWA manifest — name, icons, standalone display
+sw.js                Service worker: precached app shell + stale-while-revalidate for fonts/tiles/API
+icons/               Favicon + manifest icons, generated from one square source image (see PWA section)
+css/styles.css       All styling — design tokens (light/dark × Standard/Material 3/Liquid Glass) at the top
+js/app.js            Registers routes, boots theme/design/ripple, registers the service worker
+js/router.js         Tiny hash-based router (#/, #/courses, #/round/:id/play, ...) — now parses ?query too
 js/header.js         Renders the header per-route: wordmark+toggle on home, back+title elsewhere
 js/models.js         Data shapes (Course, Round, Player) + id/factory helpers
 js/storage.js        The ONLY file that touches localStorage — see below
 js/theme.js          Light/dark handling (system default + manual override, or explicit choice)
+js/design.js          Design-language (Standard/Material 3/Liquid Glass) + color palette handling — see below
+js/ripple.js          Material 3's press ripple, delegated at the document level (no-op outside m3)
+js/courseResolve.js  Shared "turn an OpenGolfAPI result into a saved local course" logic
 js/stats.js          Aggregate stats computed from local round history
 js/geo.js            Geolocation wrapper + distance math (rangefinder, nearest-course)
 js/mapConfig.js      Shared map tile URLs (satellite + street) used by home.js and play.js
@@ -45,11 +51,15 @@ There's no bottom tab bar. The home screen is three stacked tiles:
    "Locating…" if permission is denied or nothing's nearby. It never does
    this while a round is in progress. The satellite image comes from the
    same non-interactive map used elsewhere — see "Course search" below.
+   Tapping it links straight to `#/round/new?course=<id>`, which
+   preselects that course and jumps to the holes step instead of a blank
+   search — see "Course search" below for why that used to be wrong.
 2. **Stats** — a few mini stats (rounds played, avg to par, best round,
    avg putts). Tapping it opens the full Stats screen, which also lists
    every completed round (tap one to see its scorecard again).
-3. **Settings** — theme (System/Light/Dark), a link to manage courses,
-   and a reset-all-data option.
+3. **Settings** — theme (System/Light/Dark), design language (Standard /
+   Material 3 / Liquid Glass, with a "match my device" auto option) and
+   color palette, a link to manage courses, and a reset-all-data option.
 
 Every other screen gets a back button + title in the header, targeting a
 fixed parent screen (declared per-route in `app.js`) rather than browser
@@ -104,12 +114,21 @@ API-sourced ones. Worth knowing:
 - Every result list — nearby search, name search, and your own saved
   courses — is sorted nearest-first once your position is known
   (`sortByDistance` in `js/geo.js`), not just the dedicated "near me" flow.
-  This one was a confirmed real bug, not just a UX gap: the home tile was
-  asking the API for a single result and trusting it was the closest one,
-  with no client-side check — which is how a course an hour away ended up
-  labeled "nearest." Every "nearest" lookup now fetches a real batch and
-  sorts it by actual calculated distance itself, never trusting the API's
-  own ordering.
+- The home tile's "nearest course" had a real bug: it only ever ranked
+  OpenGolfAPI results against each other, so a course you'd added
+  manually — which can genuinely be your closest course — never got a
+  chance to win, even though manually-added courses capture a location
+  too. `resolveNearestAndUpdate` in `js/views/home.js` now merges your own
+  saved courses and a real OpenGolfAPI batch into one list and ranks it by
+  actual calculated distance, never the API's own ordering and never a
+  single trusted result.
+- Whatever wins that comparison becomes a real saved local course (via
+  `ensureLocalCourse` in `js/courseResolve.js`, reusing an existing record
+  by `externalId` if there is one) before the hero tile links to it, so
+  tapping "New round" from home goes straight to `#/round/new?course=<id>`
+  — the suggested course preselected on the holes step, with a "Not this
+  one?" link back to search — instead of a blank searchable list that
+  didn't even surface the course that was just suggested.
 - The home screen's hero tile now has a small directions button (top-right
   corner) that opens Google Maps with driving directions to that course —
   a plain `maps.google.com/dir` link, no API key needed.
@@ -197,6 +216,76 @@ separate front/center/back distances, for the same reason noted above.
   one deliberate visual flourish in the app (see `.score-*` classes in
   `styles.css` and `scoreClass()` in `js/views/play.js`).
 
+## Design languages: Standard / Material 3 / Liquid Glass
+
+Settings has one main control — a three-way segmented slider (Standard /
+Material 3 / Liquid Glass) — plus a "Match my device" toggle above it and
+a color palette below it. All three live in `js/design.js`:
+
+- **Auto-match** is on by default and picks a design language from a
+  best-effort OS-family sniff (`detectOsDesign()`): iOS/iPadOS/macOS →
+  Liquid Glass, Android → Material 3, everything else → Standard. There's
+  no web API for "this is specifically a Pixel" (or literally "this uses
+  Apple's Liquid Glass") — only a general UA/platform signature — so this
+  is documented as OS-family detection, not hardware detection, both in
+  the module comment and in the Settings copy itself.
+- Picking a value on the segmented control always overrides auto-match
+  (and turns the toggle off) — the two controls represent one underlying
+  state, not two independent ones.
+- Almost the entire visual shift is token remapping, not per-component
+  rewrites: every card/button/input in `styles.css` already reads from
+  `--color-*`, `--radius-*`, and `--shadow-card`, so
+  `[data-design='m3']`/`[data-design='glass']` mostly just redefine those
+  tokens once, near the top of the file. On top of that: Material 3 gets
+  pill-shaped buttons/segmented controls, tonal (flat) secondary buttons,
+  and a real state-layer ripple on press (`js/ripple.js`, delegated at the
+  document level so it works across every view without per-element
+  wiring, and a genuine no-op outside `data-design="m3"`); Liquid Glass
+  gets translucent blurred surfaces with an inset highlight rim over a
+  soft color wash on the page background.
+- The hero tile keeps its own photographic satellite-image treatment in
+  every design language — it's meant to read as a photo card, not a
+  themed surface.
+- **Color palette** (Fairway/Ocean/Sunset/Slate presets, or a custom
+  primary/secondary/tertiary picker) applies across all three design
+  languages, by setting `--color-fairway`/`-bright`/`-sand`/`-sky` as
+  inline styles on `<html>` — inline styles outrank any of the tokens
+  above regardless of which design language is active, so there's no
+  design-specific palette plumbing needed. It intentionally doesn't vary
+  by light/dark (one color per role, not two) — matches the original
+  plan's "edit primary/secondary/tertiary color" scope without doubling
+  the settings UI.
+- `theme-color` (the browser/OS chrome tint) follows both light/dark *and*
+  design language automatically — see `syncThemeColorMeta()` in
+  `js/theme.js`.
+
+## PWA & offline
+
+`manifest.webmanifest` + `sw.js` make this installable and usable with a
+spotty or absent connection:
+
+- The app shell (HTML/CSS/JS, icons) is precached on install and served
+  cache-first, so the app still opens with no signal at all.
+- Everything else useful offline — Leaflet, Google Fonts, Esri satellite
+  tiles, OpenGolfAPI search — is cached at runtime with a
+  stale-while-revalidate strategy: once you've viewed a hole's map tiles
+  or searched courses with a signal, they're reusable without one. This is
+  opportunistic caching of what you've actually used, not a proactive
+  "download this course for offline" feature — that would need its own UI
+  and is a reasonable Stage 3+ addition, not assumed here.
+- `sw.js` bumps its own cache on `CACHE_VERSION` and calls `skipWaiting()`
+  / `clients.claim()` on install/activate, with a one-time reload on
+  `controllerchange` in `app.js` — the simplest correct "always run the
+  latest version" pattern, no separate "update available" UI. Bump
+  `CACHE_VERSION` (and the `?v=` query strings on `styles.css`/`app.js` in
+  `index.html`, and the matching precache list in `sw.js`) any time you
+  change a precached file's content.
+- Icons in `icons/` are generated from one square source image: `any`
+  (transparent) variants for the browser tab and general manifest use,
+  `maskable` variants with extra padding + a solid fill for Android's
+  adaptive-icon safe zone, and a flattened `apple-touch-icon.png` (iOS
+  ignores alpha).
+
 ## Local storage → future DB: the migration path
 
 Every screen calls functions on the `storage` object exported from
@@ -220,7 +309,6 @@ Not yet handled (by design, deferred to later stages):
 - Green geometry is a single point, not separate front/center/back edges.
 - Editing a course's basic details (name, hole count) after creation isn't
   built yet — only par-per-hole is editable, in place, while playing.
-- No PWA manifest / service worker / offline caching yet — that's Stage 3.
 
 ## Running it locally
 
@@ -260,8 +348,11 @@ testing — `index.html` loads `css/styles.css` and `js/app.js` with a `?v=`
 query string specifically so a normal refresh doesn't serve a stale cached
 copy, but a hard refresh is still the reliable way to be sure you're
 looking at what you just pushed, not a leftover from before. If you make
-your own edits going forward, bump the `?v=` number in `index.html` so
-this keeps working.
+your own edits going forward, bump the `?v=` number in `index.html` **and**
+`CACHE_VERSION` + the matching precache list in `sw.js` — the service
+worker now also caches the app shell (see "PWA & offline" above), and its
+own reload-on-update logic only fires once a new worker has actually
+activated, which needs the cache version bumped to be noticed at all.
 
 ## What to try once it's deployed
 
@@ -269,10 +360,11 @@ This one really needs a phone with location on — desktop geolocation is
 usually too imprecise to be meaningful, and the map/rangefinder need real
 coordinates to show anything useful.
 
-1. Tap the home screen's top tile — it should prompt for location and
-   then go straight to a "Near you" list of real nearby courses (search by
-   name also works; "add manually" is there if a course isn't listed).
-2. Pick a course, choose holes to play, and start the round.
+1. Tap the home screen's top tile — it should prompt for location, then
+   land on the holes step with your real nearest course already selected
+   (labeled "Nearest course," with a "Not this one?" link back to search —
+   not a blank searchable list).
+2. Pick holes to play and start the round.
 3. On hole 1, if it's an API-sourced course, you should see a tappable
    "Par 4 · confirm" badge — tap it and pick the real par.
 4. On hole 1, the map should locate you almost immediately. Tap the
@@ -287,5 +379,12 @@ coordinates to show anything useful.
    mapped.
 6. Back on the home screen, the top tile should show your real nearest
    course with its satellite image behind the text.
-7. Everything from Stage 1 still applies: stats, settings, theme, and
+7. In Settings, try the design language slider (Standard / Material 3 /
+   Liquid Glass) and the "Match my device" toggle, and a color palette —
+   confirm the palette carries over when you switch design language.
+8. On a phone, use the browser's "Add to Home Screen" / install prompt —
+   it should install with the golf-ball icon, open without browser chrome,
+   and (after one normal visit while online) still open with airplane
+   mode on.
+9. Everything from Stage 1 still applies: stats, settings, theme, and
    resuming a round after a refresh.

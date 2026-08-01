@@ -38,8 +38,10 @@ function matchRoute(path) {
 }
 
 export async function renderRoute() {
-  const path = (location.hash || '#/').slice(1) || '/';
-  const matched = matchRoute(path);
+  const raw = (location.hash || '#/').slice(1) || '/';
+  const [path, queryStr] = raw.split('?');
+  const query = Object.fromEntries(new URLSearchParams(queryStr || ''));
+  const matched = matchRoute(path || '/');
   const outlet = document.getElementById('view-outlet');
 
   if (!matched) {
@@ -49,7 +51,7 @@ export async function renderRoute() {
   }
 
   renderHeader(matched.meta || {});
-  await matched.handler(outlet, matched.params);
+  await matched.handler(outlet, { ...matched.params, ...query });
   outlet.scrollTo(0, 0);
 }
 

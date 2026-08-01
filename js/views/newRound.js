@@ -1,18 +1,26 @@
 import { storage } from '../storage.js';
-import { makeCourse, makeRound } from '../models.js';
+import { makeRound } from '../models.js';
 import { escapeHtml } from './home.js';
 import { searchCourses, searchNearbyCourses } from '../api/opengolfapi.js';
 import { getCurrentPosition, sortByDistance } from '../geo.js';
+import { ensureLocalCourse } from '../courseResolve.js';
 
-const DEFAULT_PAR = 4;
-const DEFAULT_HOLE_COUNT = 18;
 let searchDebounce = null;
 
-export async function renderNewRound(outlet) {
+// `params.course` is a local course id, passed via `#/round/new?course=<id>`
+// by the home screen's hero tile once it's resolved a suggested/nearest
+// course — see resolveNearestAndUpdate() in home.js. When present, this
+// screen skips straight to the holes step with that course preselected
+// (and clearly labeled as a suggestion, with an easy way to change it)
+// instead of dropping the user into a blank searchable list that doesn't
+// even show the course that was just suggested.
+export async function renderNewRound(outlet, params = {}) {
   const localCourses = await storage.getCourses();
+  const suggested = params.course ? localCourses.find((c) => c.id === params.course) : null;
 
-  let step = 'course'; // 'course' | 'holes'
-  let selectedCourse = null;
+  let step = suggested ? 'holes' : 'course'; // 'course' | 'holes'
+  let selectedCourse = suggested || null;
+  let viaSuggestion = Boolean(suggested);
   let apiResults = [];
   let resultsLabel = ''; // e.g. "Near you" or 'Results for "pebble"'
   let searchStatus = 'idle'; // idle | loading | empty
@@ -21,7 +29,7 @@ export async function renderNewRound(outlet) {
   let userPosition = null; // cached once known — reused to sort every result list "nearest first"
 
   render();
-  loadNearby(); // auto-run on open — no button tap needed
+  loadNearby(); // auto-run on open — no button tap needed, even past the course step
 
   function render() {
     step === 'holes' ? renderHolesStep() : renderCourseStep();
@@ -95,8 +103,9 @@ export async function renderNewRound(outlet) {
         if (kind === 'local') {
           selectedCourse = localCourses[idx];
         } else {
-          selectedCourse = await resolveApiCourse(apiResults[idx]);
+          selectedCourse = await ensureLocalCourse(apiResults[idx], localCourses);
         }
+        viaSuggestion = false; // manually picked — the "suggested" label no longer applies
         step = 'holes';
         render();
       });
@@ -150,29 +159,6 @@ export async function renderNewRound(outlet) {
     render();
   }
 
-  // Reuse the local course record if this API course has already been
-  // played before (matched by externalId); otherwise create one now.
-  // Par defaults to 4 per hole since OpenGolfAPI's free tier doesn't
-  // reliably expose per-hole par — it's a placeholder until the user
-  // plays (or manually corrects) each hole.
-  async function resolveApiCourse(apiCourse) {
-    const existing = localCourses.find((c) => c.externalId === apiCourse.externalId);
-    if (existing) return existing;
-
-    const holes = Array.from({ length: DEFAULT_HOLE_COUNT }, (_, i) => ({ number: i + 1, par: DEFAULT_PAR }));
-    const course = makeCourse({
-      name: apiCourse.name,
-      numHoles: DEFAULT_HOLE_COUNT,
-      holes,
-      source: 'api',
-      externalId: apiCourse.externalId,
-      location: apiCourse.lat != null ? { lat: apiCourse.lat, lng: apiCourse.lng } : null,
-    });
-    await storage.saveCourse(course);
-    localCourses.push(course);
-    return course;
-  }
-
   // ---- Step 2: holes to play ----
 
   function renderHolesStep() {
@@ -187,7 +173,17 @@ export async function renderNewRound(outlet) {
 
     outlet.innerHTML = `
       <section class="panel">
-        <div class="field-group-label">${escapeHtml(selectedCourse.name)}</div>
+        ${
+          viaSuggestion
+            ? `<div class="suggested-course-banner">
+                 <div>
+                   <span class="suggested-course-eyebrow">Nearest course</span>
+                   <span class="field-group-label">${escapeHtml(selectedCourse.name)}</span>
+                 </div>
+                 <button type="button" class="text-btn" id="change-course-btn">Not this one?</button>
+               </div>`
+            : `<div class="field-group-label">${escapeHtml(selectedCourse.name)}</div>`
+        }
         <form id="round-form" class="form">
           <label class="field">
             <span>Holes to play</span>
@@ -197,7 +193,7 @@ export async function renderNewRound(outlet) {
           </label>
           <button type="submit" class="btn btn-primary btn-block">Start round</button>
         </form>
-        <button type="button" class="btn btn-secondary btn-block" id="change-course-btn">Choose a different course</button>
+        ${!viaSuggestion ? `<button type="button" class="btn btn-secondary btn-block" id="change-course-btn">Choose a different course</button>` : ''}
       </section>
     `;
 
