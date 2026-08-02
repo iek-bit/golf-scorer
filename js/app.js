@@ -1,3 +1,4 @@
+import './installPrompt.js';
 import { initRouter, route } from './router.js';
 import { initTheme } from './theme.js';
 import { initDesign } from './design.js';

@@ -1,6 +1,7 @@
 import { storage } from '../storage.js';
 import { getThemeMode, setThemeMode } from '../theme.js';
 import { getDesignState, setDesignManual, setDesignAuto, getPaletteState, setPalettePreset, setCustomPalette, paletteIds, paletteFor } from '../design.js';
+import { getInstallState, promptInstall } from '../installPrompt.js';
 
 const DESIGN_LABELS = { standard: 'Standard', m3: 'Material 3', glass: 'Liquid Glass' };
 const PALETTE_LABELS = { fairway: 'Fairway', ocean: 'Ocean', sunset: 'Sunset', slate: 'Slate' };
@@ -55,6 +56,8 @@ export async function renderSettings(outlet) {
           ${colorField('tertiary', 'Tertiary', customColors.tertiary)}
         </div>
       </div>
+
+      ${renderInstallGroup(getInstallState())}
 
       <div class="settings-group">
         <span class="settings-group-label">Data</span>
@@ -128,12 +131,43 @@ export async function renderSettings(outlet) {
     document.querySelectorAll('#palette-swatch-row button').forEach((b) => b.classList.toggle('is-active', b.dataset.palette === 'custom'));
   });
 
+  const installBtn = document.getElementById('install-app-btn');
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      await promptInstall();
+      renderSettings(outlet); // reflect whatever the person chose (installed, or prompt now spent)
+    });
+  }
+
   document.getElementById('reset-data-btn').addEventListener('click', async () => {
     const confirmed = window.confirm('This deletes every saved course and round on this device. This cannot be undone. Continue?');
     if (!confirmed) return;
     await storage.clearAll();
     location.hash = '#/';
   });
+}
+
+function renderInstallGroup(installState) {
+  if (installState.status === 'installed' || installState.status === 'unsupported') return '';
+
+  if (installState.status === 'ios-manual') {
+    return `
+      <div class="settings-group">
+        <span class="settings-group-label">App</span>
+        <p class="stats-note">Add Fairway to your Home Screen: tap the Share icon in Safari, then "Add to Home Screen."</p>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="settings-group">
+      <span class="settings-group-label">App</span>
+      <button type="button" class="settings-row" id="install-app-btn">
+        <span>Install Fairway</span>
+        <span class="settings-row-chevron">›</span>
+      </button>
+    </div>
+  `;
 }
 
 function segmentButton(group, mode, label, isActive) {

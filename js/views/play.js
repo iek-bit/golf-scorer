@@ -85,6 +85,8 @@ export async function renderPlay(outlet, params) {
             ${currentIndex === round.holeScores.length - 1 ? 'Finish round' : 'Next hole'}
           </button>
         </div>
+
+        <button type="button" class="text-btn text-btn-danger abandon-round-btn" id="abandon-round-btn">Abandon round</button>
       </section>
     `;
 
@@ -101,10 +103,18 @@ export async function renderPlay(outlet, params) {
     document.getElementById('putts-plus').addEventListener('click', () => adjust('putts', 1, 0));
     document.getElementById('prev-hole').addEventListener('click', () => go(-1));
     document.getElementById('next-hole').addEventListener('click', finishOrNext);
+    document.getElementById('abandon-round-btn').addEventListener('click', abandonRound);
     attachScorecardStripHandlers();
     attachParControlHandlers(holeDef);
 
     maybeAutoFetchPosition(holeScore);
+  }
+
+  async function abandonRound() {
+    const confirmed = window.confirm('Discard this round? Every hole scored so far will be deleted — this can\'t be undone.');
+    if (!confirmed) return;
+    await storage.deleteRound(round.id);
+    location.hash = '#/';
   }
 
   // ---- Scorecard strip ----

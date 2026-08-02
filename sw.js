@@ -17,7 +17,7 @@
 // Registered from js/app.js with scope './' so it works from a GitHub
 // Pages subpath (e.g. /golf-scorer/) as well as a custom domain.
 
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const SHELL_CACHE = `fairway-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `fairway-runtime-${CACHE_VERSION}`;
 
@@ -27,13 +27,14 @@ const PRECACHE_URLS = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './css/styles.css?v=8',
-  './js/app.js?v=8',
+  './css/styles.css?v=9',
+  './js/app.js?v=9',
   './js/router.js',
   './js/header.js',
   './js/theme.js',
   './js/design.js',
   './js/ripple.js',
+  './js/installPrompt.js',
   './js/stats.js',
   './js/geo.js',
   './js/usStates.js',
@@ -42,6 +43,7 @@ const PRECACHE_URLS = [
   './js/mapConfig.js',
   './js/courseResolve.js',
   './js/api/opengolfapi.js',
+  './js/api/weather.js',
   './js/components/tile.js',
   './js/views/home.js',
   './js/views/courses.js',

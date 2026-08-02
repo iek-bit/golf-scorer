@@ -9,8 +9,9 @@
 
 import { storage } from './storage.js';
 import { makeCourse } from './models.js';
+import { getCourseHoleCount } from './api/opengolfapi.js';
 
-const DEFAULT_HOLE_COUNT = 18;
+const FALLBACK_HOLE_COUNT = 18; // only used if the real count can't be determined at all
 const DEFAULT_PAR = 4;
 
 /**
@@ -23,12 +24,20 @@ export async function ensureLocalCourse(apiCourse, localCourses) {
   const existing = localCourses.find((c) => c.externalId === apiCourse.externalId);
   if (existing) return existing;
 
+  // Assuming every API course has 18 holes was a real bug: a genuinely
+  // 9-hole course (there are plenty — small municipal courses especially)
+  // got 9 fabricated extra holes tacked on. One extra lookup against the
+  // full course detail (holes.length) at the moment a course is first
+  // saved gets the real count; only falls back to 18 if that's
+  // undeterminable (detail fetch failed, or the course has no holes data).
+  const numHoles = (await getCourseHoleCount(apiCourse.externalId)) || FALLBACK_HOLE_COUNT;
+
   // Par isn't reliably free from OpenGolfAPI, so every hole starts at a
   // placeholder par with parConfirmed: false — see makeCourse().
-  const holes = Array.from({ length: DEFAULT_HOLE_COUNT }, (_, i) => ({ number: i + 1, par: DEFAULT_PAR }));
+  const holes = Array.from({ length: numHoles }, (_, i) => ({ number: i + 1, par: DEFAULT_PAR }));
   const course = makeCourse({
     name: apiCourse.name,
-    numHoles: DEFAULT_HOLE_COUNT,
+    numHoles,
     holes,
     source: 'api',
     externalId: apiCourse.externalId,

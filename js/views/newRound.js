@@ -4,6 +4,7 @@ import { escapeHtml } from './home.js';
 import { searchCourses, searchNearbyCourses } from '../api/opengolfapi.js';
 import { getCurrentPosition, sortByDistance } from '../geo.js';
 import { ensureLocalCourse } from '../courseResolve.js';
+import { getCourseWeather } from '../api/weather.js';
 
 let searchDebounce = null;
 
@@ -23,7 +24,7 @@ export async function renderNewRound(outlet, params = {}) {
   let viaSuggestion = Boolean(suggested);
   let apiResults = [];
   let resultsLabel = ''; // e.g. "Near you" or 'Results for "pebble"'
-  let searchStatus = 'idle'; // idle | loading | empty
+  let searchStatus = 'idle'; // idle | loading | empty | offline
   let locationStatus = 'loading'; // loading | idle | error — starts loading, see loadNearby() below
   let requestId = 0; // guards against a slow response clobbering a newer one
   let userPosition = null; // cached once known — reused to sort every result list "nearest first"
@@ -63,6 +64,7 @@ export async function renderNewRound(outlet, params = {}) {
       return `<p class="field-hint">Finding courses near you…</p>`;
     }
     if (searchStatus === 'loading') return `<p class="field-hint">Searching…</p>`;
+    if (searchStatus === 'offline') return `<p class="field-hint">You're offline — search will work again once you're back online.</p>`;
     if (searchStatus === 'empty') return `<p class="field-hint">No matches — try a different search, or add it manually below.</p>`;
     if (!apiResults.length) return '';
     return `
@@ -133,7 +135,7 @@ export async function renderNewRound(outlet, params = {}) {
       if (myRequest !== requestId) return; // a newer search/location request superseded this one
       apiResults = sortByDistance(userPosition, results, (c) => (c.lat != null ? { lat: c.lat, lng: c.lng } : null));
       resultsLabel = `Results for "${q}"`;
-      searchStatus = results.length ? 'idle' : 'empty';
+      searchStatus = results.length ? 'idle' : navigator.onLine ? 'empty' : 'offline';
       document.getElementById('search-results').innerHTML = renderApiResults();
       attachCourseCardHandlers();
     }, 400);
@@ -150,7 +152,7 @@ export async function renderNewRound(outlet, params = {}) {
       if (myRequest !== requestId) return; // the user searched by name before this resolved
       apiResults = sortByDistance(userPosition, results, (c) => (c.lat != null ? { lat: c.lat, lng: c.lng } : null));
       resultsLabel = 'Near you';
-      searchStatus = results.length ? 'idle' : 'empty';
+      searchStatus = results.length ? 'idle' : navigator.onLine ? 'empty' : 'offline';
       locationStatus = 'idle';
     } catch {
       if (myRequest !== requestId) return;
@@ -169,7 +171,7 @@ export async function renderNewRound(outlet, params = {}) {
             { value: 'front9', label: 'Front 9' },
             { value: 'back9', label: 'Back 9' },
           ]
-        : [{ value: '9', label: 'All 9' }];
+        : [{ value: 'front9', label: 'Front 9' }]; // a real 9-hole course has only one 9 to play — see courseResolve.js
 
     outlet.innerHTML = `
       <section class="panel">
@@ -210,6 +212,26 @@ export async function renderNewRound(outlet, params = {}) {
       const round = makeRound({ courseId: selectedCourse.id, holesPlayed, holeNumbers });
       await storage.saveRound(round);
       location.hash = `#/round/${round.id}/play`;
+
+      // Fire-and-forget: a snapshot of conditions when the round started,
+      // for the round's own "Wind & weather" section later (summary.js)
+      // and the Stats weather filter — not worth delaying the actual round
+      // for. Only possible for API-sourced courses (weather is keyed by
+      // OpenGolfAPI's course id; a manually-added course has none).
+      if (selectedCourse.externalId) {
+        getCourseWeather(selectedCourse.externalId).then(async (weather) => {
+          if (!weather) return;
+          // Re-read rather than reuse the `round` object above — by the
+          // time this resolves, the player may already be on the play
+          // screen with real progress saved under this id. Merging into
+          // a fresh read (not this stale pre-play snapshot) means that
+          // progress can't get silently overwritten by a slow weather call.
+          const latest = await storage.getRound(round.id);
+          if (!latest) return; // round was abandoned/deleted before this resolved
+          latest.weather = weather;
+          await storage.saveRound(latest);
+        });
+      }
     });
   }
 }

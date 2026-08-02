@@ -5,6 +5,7 @@ import { searchNearbyCourses } from '../api/opengolfapi.js';
 import { getCurrentPosition, haversineMeters } from '../geo.js';
 import { SATELLITE_TILE_URL, SATELLITE_ATTRIBUTION } from '../mapConfig.js';
 import { ensureLocalCourse } from '../courseResolve.js';
+import { getCourseWeather, weatherIconSvg, degToCompass } from '../api/weather.js';
 
 export async function renderHome(outlet) {
   const [rounds, courses] = await Promise.all([storage.getRounds(), storage.getCourses()]);
@@ -19,6 +20,7 @@ export async function renderHome(outlet) {
   `;
 
   mountHeroMap(heroState.course?.location || null);
+  if (heroState.mode === 'continue') loadHeroWeather(heroState.course);
 
   // Actively resolve the true GPS-nearest course (this can prompt for
   // location permission — that's intentional here, since finding the
@@ -53,11 +55,37 @@ function heroTileMarkup({ href, extraClass, ariaLabel, eyebrow, courseLabel, cta
       <div id="hero-tile-map" class="tile-map"></div>
       <a class="tile-primary-link" href="${href}" aria-label="${escapeHtml(ariaLabel)}"></a>
       ${directionsButtonHtml(location)}
+      <span id="hero-weather-badge"></span>
       <span class="hero-eyebrow">${escapeHtml(eyebrow)}</span>
       <span class="hero-course">${escapeHtml(courseLabel)}</span>
       <span class="hero-cta">${escapeHtml(cta)}</span>
     </div>
   `;
+}
+
+function weatherBadgeHtml(weather) {
+  if (!weather) return '';
+  const direction = degToCompass(weather.windDirectionDeg);
+  const windText = weather.windSpeedMph != null ? `${Math.round(weather.windSpeedMph)} mph${direction ? ` ${direction}` : ''}` : null;
+  return `
+    <div class="weather-badge" aria-hidden="true">
+      ${weatherIconSvg(weather.condition, 14)}
+      ${windText ? `<span>${escapeHtml(windText)}</span>` : ''}
+    </div>
+  `;
+}
+
+// Fetches after the tile's already showing (never blocks the initial
+// render) and drops the badge into its reserved slot if it resolves —
+// API-sourced course only (see api/weather.js), so a manually-added
+// course's tile just stays without one rather than showing something
+// wrong or a permanent loading state.
+async function loadHeroWeather(course) {
+  if (!course?.externalId) return;
+  const weather = await getCourseWeather(course.externalId);
+  if (!weather) return;
+  const slot = document.getElementById('hero-weather-badge');
+  if (slot) slot.outerHTML = `<span id="hero-weather-badge">${weatherBadgeHtml(weather)}</span>`;
 }
 
 function directionsButtonHtml(location) {
@@ -163,6 +191,7 @@ function finalizeTile(fallbackCourse, nearestCourse, distanceMi) {
   if (!nearestCourse) {
     slot.innerHTML = renderRoundTile({ mode: 'start', course: fallbackCourse });
     mountHeroMap(fallbackCourse?.location || null);
+    loadHeroWeather(fallbackCourse);
     return;
   }
 
@@ -181,6 +210,7 @@ function finalizeTile(fallbackCourse, nearestCourse, distanceMi) {
     location: nearestCourse.location,
   });
   mountHeroMap(nearestCourse.location);
+  loadHeroWeather(nearestCourse);
 }
 
 // A non-interactive satellite snapshot behind the hero tile's text —

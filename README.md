@@ -27,10 +27,13 @@ js/theme.js          Light/dark handling (system default + manual override, or e
 js/design.js          Design-language (Standard/Material 3/Liquid Glass) + color palette handling — see below
 js/ripple.js          Material 3's press ripple, delegated at the document level (no-op outside m3)
 js/courseResolve.js  Shared "turn an OpenGolfAPI result into a saved local course" logic
+js/usStates.js       Bounding-box state lookup used by "nearest course" — see Course search below
+js/installPrompt.js  Captures the PWA install prompt + iOS detection — see Installing below
 js/stats.js          Aggregate stats computed from local round history
 js/geo.js            Geolocation wrapper + distance math (rangefinder, nearest-course)
 js/mapConfig.js      Shared map tile URLs (satellite + street) used by home.js and play.js
 js/api/opengolfapi.js  Read-only wrapper around OpenGolfAPI's keyless course search — see below
+js/api/weather.js    Wind/condition lookup for a round — see Weather below
 js/components/tile.js  Shared wrapper for the home screen's tappable tiles
 js/views/*.js        One file per screen (home, courses, new round, play, summary, stats, settings)
 ```
@@ -159,6 +162,17 @@ same "confirmed once, remembered forever" pattern as tee/green mapping
 below. Manually-added courses skip this entirely; typing a par in counts
 as confirming it.
 
+Hole *count* is a separate, earlier problem: the compact search/nearby
+results don't include it at all (only `par_total`, which isn't a reliable
+proxy — a 9-hole par-35 course and an 18-hole par-70 course don't share a
+fixed ratio). Assuming every API course was 18 holes was a real bug —
+genuinely 9-hole courses (small municipal courses especially) got 9
+fabricated extra holes. `ensureLocalCourse` (`js/courseResolve.js`) now
+does one extra lookup against the full course detail's `holes` array
+length the moment a course is first saved, and only falls back to
+assuming 18 if that's undeterminable. A confirmed 9-hole course's "holes
+to play" step only ever offers "Front 9" (there's no back nine to offer).
+
 ## Shot tracking & how a course gets mapped
 
 The plan called for either an API for hole-by-hole GPS or a manual
@@ -274,6 +288,67 @@ a color palette below it. All three live in `js/design.js`:
 - `theme-color` (the browser/OS chrome tint) follows both light/dark *and*
   design language automatically — see `syncThemeColorMeta()` in
   `js/theme.js`.
+
+## Weather
+
+Deliberately simple, per your ask: wind speed + direction and one of four
+conditions (sun/cloud/rain/snow) — not a full forecast UI. All of it comes
+from OpenGolfAPI's own free, keyless, per-course endpoints
+(`js/api/weather.js`):
+
+- `/courses/{id}/conditions` for wind speed/direction/gust and temp — its
+  field names are pinned down in OpenGolfAPI's own spec, so this is
+  trusted directly.
+- `/courses/{id}/weather` (a Weather.gov forecast passthrough) only for
+  its short text description, checked against a few likely field names,
+  to classify sky condition — wind and temp always come from `conditions`
+  above, never guessed from forecast text. With no usable forecast text,
+  the fallback is precipitation + temperature (rain vs. snow by whether
+  it's freezing; no precipitation reads as "sun," since there's no
+  cloud-cover number to fall back on for cloud specifically).
+
+Both endpoints are keyed by an OpenGolfAPI course id, so weather is only
+ever available for API-sourced courses — a manually-added course has no
+id to ask about, and there's no coordinate-based weather endpoint to fall
+back to. It just doesn't show a weather section/badge for those, rather
+than showing something wrong.
+
+Where it shows up:
+
+- The home screen's hero tile gets a small badge in the top-left corner
+  (mirroring the directions button in the top-right) once weather
+  resolves — fetched after the tile's course is already settled, never
+  blocking the tile's own render.
+- Starting a round fetches a one-time snapshot and saves it onto the round
+  record (fire-and-forget — doesn't delay getting to hole 1). If it
+  resolves after you're already mid-round, it merges into a fresh read of
+  the round rather than the stale pre-round copy, so a slow weather call
+  can never silently overwrite scoring progress made in the meantime.
+- Every finished round's summary screen shows a "Wind & weather" section
+  if that round has one.
+- Stats' "Recent rounds" gets a filter row — but only for conditions that
+  actually appear in your history, so it's never a row of buttons that
+  always return zero results.
+
+## Managing your data
+
+`storage.deleteCourse()`/`deleteRound()` existed from early on but nothing
+called them. Now: each saved course in "Manage courses" has a delete
+button (rounds already played there stay in history), each round in
+Stats' "Recent rounds" has one too, and the play screen has an "Abandon
+round" action for a round you started but don't want to finish — none of
+Stage 1 had a way to walk one back, so an abandoned round just sat there
+forever claiming the home tile's "Continue round" slot.
+
+## Installing
+
+Settings has an "Install Fairway" row when the browser supports a native
+install prompt (`beforeinstallprompt` — Chrome/Edge/Android), which
+triggers that same native prompt. iOS Safari has no equivalent API at
+all — there's no programmatic install prompt to trigger there — so it
+shows instructions (Share → Add to Home Screen) instead of a button. The
+row disappears entirely once the app is already installed, or on a
+browser with no install path to offer at all (`js/installPrompt.js`).
 
 ## PWA & offline
 

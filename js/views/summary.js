@@ -1,6 +1,7 @@
 import { storage } from '../storage.js';
 import { totalForRound, toParText, escapeHtml } from './home.js';
 import { scoreClass } from './play.js';
+import { weatherIconSvg, weatherConditionLabel, degToCompass } from '../api/weather.js';
 
 export async function renderSummary(outlet, params) {
   const round = await storage.getRound(params.id);
@@ -25,12 +26,36 @@ export async function renderSummary(outlet, params) {
         <div class="stat"><span class="stat-value">${round.holeScores.length}</span><span class="stat-label">Holes</span></div>
       </div>
 
+      ${round.weather ? renderWeatherSection(round.weather) : ''}
+
       <ul class="scorecard-grid">
         ${round.holeScores.map((h) => renderHoleCell(h, course)).join('')}
       </ul>
 
       <a class="btn btn-primary btn-block" href="#/">Done</a>
     </section>
+  `;
+}
+
+function renderWeatherSection(weather) {
+  const direction = degToCompass(weather.windDirectionDeg);
+  return `
+    <div class="field-group-label">Wind &amp; weather</div>
+    <div class="weather-summary">
+      <div class="weather-summary-condition">
+        ${weatherIconSvg(weather.condition, 20)}
+        <span>${weatherConditionLabel(weather.condition)}</span>
+        ${weather.tempF != null ? `<span class="weather-summary-temp">${Math.round(weather.tempF)}°F</span>` : ''}
+      </div>
+      ${
+        weather.windSpeedMph != null
+          ? `<div class="weather-summary-wind">
+               <span class="weather-summary-wind-value">${Math.round(weather.windSpeedMph)} mph</span>
+               <span class="weather-summary-wind-label">${direction ? `Wind from the ${direction}` : 'Wind'}${weather.windGustMph ? ` · gusts ${Math.round(weather.windGustMph)}` : ''}</span>
+             </div>`
+          : ''
+      }
+    </div>
   `;
 }
 

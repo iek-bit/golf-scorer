@@ -83,7 +83,17 @@ const STATE_MAX_PAGES = 10;
  * ranked subset of, but couldn't be trusted to.
  * @returns {Promise<{externalId, name, city, state, lat, lng, par}[]>}
  */
+// In-memory only (not persisted) — cleared on a real page reload, which is
+// exactly the lifetime we want: home.js resolves "nearest" on load, then
+// newRound.js immediately does the same work again if you tap through to
+// it, and without this they'd both pay the full multi-page state fetch.
+// A stale cached list (a brand-new course added to OpenGolfAPI mid-session)
+// is an acceptable trade for not re-fetching a few hundred courses per tap.
+const stateListCache = new Map();
+
 export async function searchCoursesByState(code) {
+  if (stateListCache.has(code)) return stateListCache.get(code);
+
   const all = [];
   for (let page = 0; page < STATE_MAX_PAGES; page++) {
     const offset = page * STATE_PAGE_SIZE;
@@ -93,7 +103,25 @@ export async function searchCoursesByState(code) {
     if (typeof data.total === 'number' && all.length >= data.total) break;
     if (data.courses.length < STATE_PAGE_SIZE) break; // short page = last page
   }
+  stateListCache.set(code, all);
   return all;
+}
+
+// The compact search/state results (mapCourse above) never include a hole
+// count — only par_total, which isn't a reliable proxy (a par-70 18-hole
+// course and a par-35 9-hole course don't share a fixed ratio). The only
+// place OpenGolfAPI actually exposes hole count is the full CourseDetail's
+// `holes` array length, via a second per-course fetch — worth doing once,
+// right when a course is first saved locally (see ensureLocalCourse in
+// js/courseResolve.js), rather than assuming every course is 18 holes.
+/**
+ * @returns {Promise<number|null>} real hole count, or null if undeterminable
+ */
+export async function getCourseHoleCount(externalId) {
+  if (!externalId) return null;
+  const data = await safeFetchJson(`${BASE_URL}/api/v1/courses/${externalId}`);
+  const count = Array.isArray(data?.holes) ? data.holes.length : null;
+  return count > 0 ? count : null;
 }
 
 /**

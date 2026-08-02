@@ -459,6 +459,23 @@ h2 {
   transform: scale(0.9);
 }
 
+.weather-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px 6px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #0e1712 55%, transparent);
+  backdrop-filter: blur(6px);
+  color: #f4f3ec;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .hero-eyebrow,
 .hero-course,
 .hero-cta {
@@ -662,12 +679,76 @@ h2 {
 .score-row-course {
   font-weight: 700;
   font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.score-row-weather {
+  color: var(--color-ink-muted);
+  display: inline-flex;
+}
+
+.score-row-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.score-row-wrap .score-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.weather-filter {
+  margin-bottom: 10px;
+  gap: 2px;
+}
+
+.weather-filter-btn {
+  display: grid;
+  place-items: center;
 }
 
 .score-row-date,
 .list-row-meta {
   font-size: 12px;
   color: var(--color-ink-muted);
+}
+
+.list-row > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.list-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.delete-course-btn,
+.delete-round-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  color: var(--color-ink-muted);
+}
+
+.delete-course-btn:hover,
+.delete-round-btn:hover {
+  color: var(--color-bogey);
+}
+
+.text-btn-danger {
+  color: var(--color-bogey);
+}
+
+.abandon-round-btn {
+  display: block;
+  margin: 4px auto 0;
 }
 
 .score-row-total {
@@ -889,6 +970,46 @@ h2 {
   display: flex;
   justify-content: center;
   gap: 40px;
+}
+
+.weather-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 4px;
+}
+
+.weather-summary-condition {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.weather-summary-temp {
+  color: var(--color-ink-muted);
+  font-weight: 500;
+}
+
+.weather-summary-wind {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.weather-summary-wind-value {
+  font-weight: 700;
+}
+
+.weather-summary-wind-label {
+  font-size: 12px;
+  color: var(--color-ink-muted);
 }
 
 .stat {

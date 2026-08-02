@@ -17,6 +17,17 @@ export async function renderCourses(outlet) {
       ${courses.length ? renderList(courses) : `<p class="empty-state">No courses yet.<br /><a href="#/courses/new">Add your first course →</a></p>`}
     </section>
   `;
+
+  document.querySelectorAll('.delete-course-btn').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const { id, name } = btn.dataset;
+      const confirmed = window.confirm(`Delete "${name}"? Rounds already played there stay in your history, but you won't be able to start a new one here until you add it again.`);
+      if (!confirmed) return;
+      await storage.deleteCourse(id);
+      renderCourses(outlet);
+    });
+  });
 }
 
 function renderList(courses) {
@@ -25,13 +36,20 @@ function renderList(courses) {
       .map(
         (c) => `
       <li class="list-row">
-        <span>${escapeHtml(c.name)}</span>
-        <span class="list-row-meta">${c.numHoles} holes · par ${c.holes.reduce((s, h) => s + h.par, 0)}</span>
+        <span>
+          <span class="list-row-name">${escapeHtml(c.name)}</span>
+          <span class="list-row-meta">${c.numHoles} holes · par ${c.holes.reduce((s, h) => s + h.par, 0)}</span>
+        </span>
+        <button type="button" class="icon-btn delete-course-btn" data-id="${c.id}" data-name="${escapeHtml(c.name)}" aria-label="Delete ${escapeHtml(c.name)}">${trashIcon()}</button>
       </li>
     `
       )
       .join('')}
   </ul>`;
+}
+
+function trashIcon() {
+  return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16Z"/></svg>`;
 }
 
 export async function renderNewCourse(outlet) {
