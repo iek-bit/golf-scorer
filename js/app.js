@@ -4,7 +4,7 @@ import { initTheme } from './theme.js';
 import { initDesign } from './design.js';
 import { initRipple } from './ripple.js';
 import { renderHome } from './views/home.js';
-import { renderCourses, renderNewCourse } from './views/courses.js';
+import { renderCourses, renderNewCourse, renderEditCourse } from './views/courses.js';
 import { renderNewRound } from './views/newRound.js';
 import { renderPlay } from './views/play.js';
 import { renderSummary } from './views/summary.js';
@@ -21,13 +21,30 @@ route('/stats', { title: 'Stats', backTo: '/' }, renderStats);
 route('/settings', { title: 'Settings', backTo: '/' }, renderSettings);
 route('/courses', { title: 'Courses', backTo: '/settings' }, renderCourses);
 route('/courses/new', { title: 'Add course', backTo: '/courses' }, renderNewCourse);
+route('/courses/:id/edit', { title: 'Edit course', backTo: '/courses' }, renderEditCourse);
 route('/round/new', { title: 'New round', backTo: '/' }, renderNewRound);
 route('/round/:id/play', { title: 'Round', backTo: '/' }, renderPlay);
 route('/round/:id/summary', { title: 'Summary', backTo: '/' }, renderSummary);
 
-initTheme();
-initDesign();
-initRipple();
+// Each of these is independent — a failure in one (a storage read throwing,
+// browser API not existing, etc.) should never be able to stop the others
+// from running, and initRouter() in particular must always run or nothing
+// ever renders at all.
+try {
+  initTheme();
+} catch (err) {
+  console.error('initTheme failed', err);
+}
+try {
+  initDesign();
+} catch (err) {
+  console.error('initDesign failed', err);
+}
+try {
+  initRipple();
+} catch (err) {
+  console.error('initRipple failed', err);
+}
 initRouter();
 
 // PWA: cache the app shell + map/course data as it's used, so the app

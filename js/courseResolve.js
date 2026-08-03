@@ -9,7 +9,7 @@
 
 import { storage } from './storage.js';
 import { makeCourse } from './models.js';
-import { getCourseHoleCount } from './api/opengolfapi.js';
+import { getCourseHoleDetails } from './api/opengolfapi.js';
 
 const FALLBACK_HOLE_COUNT = 18; // only used if the real count can't be determined at all
 const DEFAULT_PAR = 4;
@@ -24,17 +24,21 @@ export async function ensureLocalCourse(apiCourse, localCourses) {
   const existing = localCourses.find((c) => c.externalId === apiCourse.externalId);
   if (existing) return existing;
 
-  // Assuming every API course has 18 holes was a real bug: a genuinely
-  // 9-hole course (there are plenty — small municipal courses especially)
-  // got 9 fabricated extra holes tacked on. One extra lookup against the
-  // full course detail (holes.length) at the moment a course is first
-  // saved gets the real count; only falls back to 18 if that's
-  // undeterminable (detail fetch failed, or the course has no holes data).
-  const numHoles = (await getCourseHoleCount(apiCourse.externalId)) || FALLBACK_HOLE_COUNT;
+  // One extra lookup against the full course detail, done once, right
+  // here, at the moment a course is first saved:
+  //  - hole count: assuming every API course was 18 holes was a real
+  //    bug (a genuinely 9-hole course got 9 fabricated extra holes) —
+  //    falls back to 18 only if this is truly undeterminable.
+  //  - real per-hole par, when OpenGolfAPI actually has it: skips the
+  //    placeholder-par-then-confirm flow entirely for that hole. When it
+  //    doesn't, holes come back null and nothing about that flow changes.
+  const { count, holes: realHoles } = await getCourseHoleDetails(apiCourse.externalId);
+  const numHoles = count || FALLBACK_HOLE_COUNT;
 
-  // Par isn't reliably free from OpenGolfAPI, so every hole starts at a
-  // placeholder par with parConfirmed: false — see makeCourse().
-  const holes = Array.from({ length: numHoles }, (_, i) => ({ number: i + 1, par: DEFAULT_PAR }));
+  const holes = realHoles
+    ? realHoles.map((h) => ({ number: h.number, par: h.par, parConfirmed: true }))
+    : Array.from({ length: numHoles }, (_, i) => ({ number: i + 1, par: DEFAULT_PAR }));
+
   const course = makeCourse({
     name: apiCourse.name,
     numHoles,

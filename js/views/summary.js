@@ -2,6 +2,7 @@ import { storage } from '../storage.js';
 import { totalForRound, toParText, escapeHtml } from './home.js';
 import { scoreClass } from './play.js';
 import { weatherIconSvg, weatherConditionLabel, degToCompass } from '../api/weather.js';
+import { exportRoundImage } from '../export.js';
 
 export async function renderSummary(outlet, params) {
   const round = await storage.getRound(params.id);
@@ -32,9 +33,26 @@ export async function renderSummary(outlet, params) {
         ${round.holeScores.map((h) => renderHoleCell(h, course)).join('')}
       </ul>
 
+      <button type="button" class="btn btn-secondary btn-block" id="export-round-btn">Export scorecard</button>
       <a class="btn btn-primary btn-block" href="#/">Done</a>
     </section>
   `;
+
+  document.getElementById('export-round-btn').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Preparing…';
+    try {
+      await exportRoundImage(round, course, totals);
+    } catch (err) {
+      console.error('Export failed', err);
+      window.alert("Couldn't export the scorecard. Try again?");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  });
 }
 
 function renderWeatherSection(weather) {

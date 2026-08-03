@@ -2,6 +2,7 @@ import { storage } from '../storage.js';
 import { computeStats } from '../stats.js';
 import { toParText, escapeHtml, totalForRound } from './home.js';
 import { weatherIconSvg, weatherConditionLabel } from '../api/weather.js';
+import { syncSegmentedThumb } from '../segmentedThumb.js';
 
 const WEATHER_FILTERS = ['sun', 'cloud', 'rain', 'snow'];
 
@@ -83,6 +84,7 @@ export async function renderStats(outlet) {
 
     const filterRow = document.getElementById('weather-filter-row');
     if (filterRow) {
+      syncSegmentedThumb('weather-filter-row');
       filterRow.addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-condition]');
         if (!btn) return;

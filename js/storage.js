@@ -7,6 +7,8 @@
 // that calls `storage.getCourses()` etc. keeps working unmodified, because
 // it already awaits a Promise today.
 
+import { SCHEMA_VERSION } from './models.js';
+
 const KEYS = {
   player: 'golf.player',
   courses: 'golf.courses',
@@ -117,5 +119,9 @@ export const storage = {
   // --- utility ---
   async clearAll() {
     Object.values(KEYS).forEach((k) => localStorage.removeItem(k));
+  },
+  async exportAll() {
+    const [player, courses, rounds] = await Promise.all([read(KEYS.player, null), read(KEYS.courses, []), read(KEYS.rounds, [])]);
+    return { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), player, courses, rounds };
   },
 };

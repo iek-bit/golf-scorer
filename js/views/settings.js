@@ -2,6 +2,7 @@ import { storage } from '../storage.js';
 import { getThemeMode, setThemeMode } from '../theme.js';
 import { getDesignState, setDesignManual, setDesignAuto, getPaletteState, setPalettePreset, setCustomPalette, paletteIds, paletteFor } from '../design.js';
 import { getInstallState, promptInstall } from '../installPrompt.js';
+import { syncSegmentedThumb } from '../segmentedThumb.js';
 
 const DESIGN_LABELS = { standard: 'Standard', m3: 'Material 3', glass: 'Liquid Glass' };
 const PALETTE_LABELS = { fairway: 'Fairway', ocean: 'Ocean', sunset: 'Sunset', slate: 'Slate' };
@@ -65,12 +66,18 @@ export async function renderSettings(outlet) {
           <span>Manage courses</span>
           <span class="settings-row-chevron">›</span>
         </a>
+        <button type="button" class="settings-row" id="export-data-btn">
+          <span>Export my data</span>
+        </button>
         <button type="button" class="settings-row settings-row-danger" id="reset-data-btn">
           <span>Reset all data</span>
         </button>
       </div>
     </section>
   `;
+
+  syncSegmentedThumb('theme-segmented');
+  syncSegmentedThumb('design-segmented');
 
   document.getElementById('theme-segmented').addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-mode]');
@@ -138,6 +145,19 @@ export async function renderSettings(outlet) {
       renderSettings(outlet); // reflect whatever the person chose (installed, or prompt now spent)
     });
   }
+
+  document.getElementById('export-data-btn').addEventListener('click', async () => {
+    const data = await storage.exportAll();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fairway-export-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
 
   document.getElementById('reset-data-btn').addEventListener('click', async () => {
     const confirmed = window.confirm('This deletes every saved course and round on this device. This cannot be undone. Continue?');

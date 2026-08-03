@@ -114,14 +114,57 @@ export async function searchCoursesByState(code) {
 // `holes` array length, via a second per-course fetch — worth doing once,
 // right when a course is first saved locally (see ensureLocalCourse in
 // js/courseResolve.js), rather than assuming every course is 18 holes.
+//
+// That same array is checked for real per-hole par too — CourseDetail's
+// schema doesn't pin down each hole's shape, so this is deliberately
+// defensive: only trusted when EVERY hole has a parseable number+par, on
+// a few likely field-name spellings. If that doesn't hold, `holes` comes
+// back null and the caller falls back to today's placeholder-par +
+// confirm-once flow exactly as before — this never breaks anything, it
+// only sometimes skips a step.
 /**
- * @returns {Promise<number|null>} real hole count, or null if undeterminable
+ * @returns {Promise<{count: number|null, holes: {number: number, par: number}[]|null}>}
  */
-export async function getCourseHoleCount(externalId) {
-  if (!externalId) return null;
+export async function getCourseHoleDetails(externalId) {
+  if (!externalId) return { count: null, holes: null };
   const data = await safeFetchJson(`${BASE_URL}/api/v1/courses/${externalId}`);
-  const count = Array.isArray(data?.holes) ? data.holes.length : null;
-  return count > 0 ? count : null;
+  const raw = Array.isArray(data?.holes) ? data.holes : null;
+  if (!raw?.length) return { count: null, holes: null };
+
+  const parsed = raw.map((h, i) => ({
+    number: h.hole_number ?? h.number ?? h.hole ?? i + 1,
+    par: h.par ?? h.par_value ?? null,
+  }));
+  const allValid = parsed.every((h) => Number.isInteger(h.number) && Number.isInteger(h.par) && h.par >= 3 && h.par <= 6);
+
+  return { count: raw.length, holes: allValid ? parsed.sort((a, b) => a.number - b.number) : null };
+}
+
+/**
+ * @returns {Promise<{ratedTees: object[]|null}>}
+ */
+export async function getCourseTees(externalId) {
+  if (!externalId) return null;
+  const data = await safeFetchJson(`${BASE_URL}/api/v1/courses/${externalId}/tees`);
+  return Array.isArray(data?.tees) ? data.tees : Array.isArray(data) ? data : null;
+}
+
+/**
+ * @returns {Promise<object|null>} shape is whatever OpenGolfAPI returns —
+ * not pinned down in their spec beyond "Difficulty percentile vs
+ * nearby" — so this is read defensively by the view that renders it too.
+ */
+export async function getCourseDifficulty(externalId) {
+  if (!externalId) return null;
+  return safeFetchJson(`${BASE_URL}/api/v1/courses/${externalId}/difficulty`);
+}
+
+/**
+ * @returns {Promise<object|null>} sunrise/sunset + optimal tee-time windows
+ */
+export async function getCourseDaylight(externalId) {
+  if (!externalId) return null;
+  return safeFetchJson(`${BASE_URL}/api/v1/courses/${externalId}/daylight`);
 }
 
 /**

@@ -246,6 +246,32 @@ separate front/center/back distances, for the same reason noted above.
   one deliberate visual flourish in the app (see `.score-*` classes in
   `styles.css` and `scoreClass()` in `js/views/play.js`).
 
+## Exporting a round
+
+Every finished round's summary screen (reached either by finishing a
+round or by tapping any past round in Stats) has an "Export scorecard"
+button. It renders a shareable PNG on a `<canvas>` — course, total,
+to-par, weather if the round has one, and a hole-by-hole grid colored
+the same way the in-app scorecard is — using colors read live from the
+current theme/design language/custom palette (`getComputedStyle`), not
+hardcoded ones, so the exported card actually matches what you're looking
+at. On a browser that supports sharing files (`navigator.share`), it
+opens the normal share sheet; everywhere else it downloads a PNG
+directly. See `js/export.js`.
+
+## Course info: tees, difficulty, daylight
+
+Tapping into an API-sourced course from "Manage courses" (the same screen
+used to edit it) loads three more free OpenGolfAPI facts into their own
+section above the edit form, once each resolves — never blocking the
+editable fields themselves: tee ratings/slope, a difficulty percentile
+against nearby courses, and today's sunrise/sunset + suggested tee-time
+windows. None of these response shapes are pinned down in OpenGolfAPI's
+spec beyond a one-line description, so every extractor in
+`js/views/courses.js` is deliberately defensive (checks a few plausible
+field-name spellings) and simply omits a section it can't make sense of,
+same philosophy as the weather forecast-text handling in `api/weather.js`.
+
 ## Design languages: Standard / Material 3 / Liquid Glass
 
 Settings has one main control — a three-way segmented slider (Standard /
@@ -353,10 +379,40 @@ browser with no install path to offer at all (`js/installPrompt.js`).
 ## PWA & offline
 
 `manifest.webmanifest` + `sw.js` make this installable and usable with a
-spotty or absent connection:
+spotty or absent connection.
 
-- The app shell (HTML/CSS/JS, icons) is precached on install and served
-  cache-first, so the app still opens with no signal at all.
+**A real bug lived here for a while, worth understanding if anything
+like it happens again:** the app shell used to be served
+stale-while-revalidate — cached copy first, instantly, with a network
+fetch only refreshing the cache *for next time*. That's fine for files
+that never change shape, but this app has no per-file cache-busting;
+only `index.html`'s references to `app.js` and `styles.css` get a `?v=`
+query string. Every other module (`home.js`, `opengolfapi.js`,
+`storage.js`, `courseResolve.js`, ...) lives at a bare, unversioned URL.
+Across a run of deploys that changed several of those modules' shapes
+(new imports, new function signatures), the service worker kept handing
+back old cached versions of some of them *while a fresh `app.js` had
+already loaded* — a mismatched mix of old and new module contracts,
+which is exactly the kind of thing that fails silently. The fix: same-
+origin app code (navigations, JS, CSS, manifest, icons) is now
+**network-first** — while online, it always runs whatever was actually
+just deployed, full stop. The cache exists purely as an *offline*
+fallback, never preferred over a live response. Stale-while-revalidate
+is still used, deliberately, for cross-origin runtime partners (fonts,
+Leaflet, map tiles, OpenGolfAPI) — their content doesn't change shape
+between one of *this app's* deploys, so serving a recent cached copy
+instantly there is a safe, worthwhile win rather than a correctness risk.
+
+Separately, and regardless of that specific bug: `js/router.js` now
+wraps every route render in a try/catch. A screen that fails to render
+used to just leave the outlet permanently blank — indistinguishable from
+"broken" with no way to tell what happened or recover. Now it shows the
+actual error and a link home, and logs it to the console. If a screen
+ever goes white again, check the console — it'll say why.
+
+- The app shell (HTML/CSS/JS, icons) is precached on install so the app
+  still *opens* with no signal at all, but — per the fix above — a fresh
+  online load never prefers that cache over the network.
 - Everything else useful offline — Leaflet, Google Fonts, Esri satellite
   tiles, OpenGolfAPI search — is cached at runtime with a
   stale-while-revalidate strategy: once you've viewed a hole's map tiles

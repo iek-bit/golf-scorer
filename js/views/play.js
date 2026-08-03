@@ -45,7 +45,7 @@ export async function renderPlay(outlet, params) {
         <div class="hole-card hole-card--map">
           <div class="map-area">
             <div id="shot-map" class="shot-map shot-map--large"></div>
-            ${holeDef.green ? `<button type="button" class="rangefinder-overlay" id="rangefinder-btn">${renderRangefinderContent(holeDef, lastKnownPosition)}</button>` : ''}
+            ${holeDef.green ? `<button type="button" class="rangefinder-overlay" id="rangefinder-btn" aria-label="Distance to green">${renderRangefinderContent(holeDef, lastKnownPosition)}</button>` : ''}
           </div>
 
           <button type="button" class="track-shot-btn ${holeStarted ? '' : 'track-shot-btn--start'}" id="track-shot-btn" aria-label="${holeStarted ? 'Track shot' : 'Start hole'}">

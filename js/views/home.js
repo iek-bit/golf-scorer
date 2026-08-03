@@ -5,7 +5,8 @@ import { searchNearbyCourses } from '../api/opengolfapi.js';
 import { getCurrentPosition, haversineMeters } from '../geo.js';
 import { SATELLITE_TILE_URL, SATELLITE_ATTRIBUTION } from '../mapConfig.js';
 import { ensureLocalCourse } from '../courseResolve.js';
-import { getCourseWeather, weatherIconSvg, degToCompass } from '../api/weather.js';
+import { getCourseWeather, weatherIconSvg, weatherConditionLabel, degToCompass } from '../api/weather.js';
+import { statesContainingPoint } from '../usStates.js';
 
 export async function renderHome(outlet) {
   const [rounds, courses] = await Promise.all([storage.getRounds(), storage.getCourses()]);
@@ -67,10 +68,12 @@ function weatherBadgeHtml(weather) {
   if (!weather) return '';
   const direction = degToCompass(weather.windDirectionDeg);
   const windText = weather.windSpeedMph != null ? `${Math.round(weather.windSpeedMph)} mph${direction ? ` ${direction}` : ''}` : null;
+  const label = `${weatherConditionLabel(weather.condition)}${windText ? `, wind ${windText}` : ''}`;
   return `
-    <div class="weather-badge" aria-hidden="true">
-      ${weatherIconSvg(weather.condition, 14)}
-      ${windText ? `<span>${escapeHtml(windText)}</span>` : ''}
+    <div class="weather-badge">
+      <span aria-hidden="true">${weatherIconSvg(weather.condition, 14)}</span>
+      ${windText ? `<span aria-hidden="true">${escapeHtml(windText)}</span>` : ''}
+      <span class="sr-only">${escapeHtml(label)}</span>
     </div>
   `;
 }
@@ -112,16 +115,21 @@ function renderRoundTile(state) {
 
   // "resolving" means we're actively checking for a GPS-nearer course —
   // this is a real in-progress state, not a dead end, so it gets its own
-  // label rather than reusing the final "Find a course" copy. Course id
-  // is passed along on the link itself (see renderNewRound in
-  // newRound.js) so tapping the tile preselects it instead of landing on
-  // a blank searchable list.
+  // label rather than reusing the final "nothing found" copy. Once
+  // resolveNearestAndUpdate() actually settles with nothing, `resolved`
+  // is true and the tile says so explicitly instead of staying stuck on
+  // "Locating you…" forever — that used to be a real, if minor, bug:
+  // the exact same copy covered both "still working on it" and "gave up,
+  // found nothing," which look identical to someone just reading the tile.
+  const emptyEyebrow = state.reason === 'no-coverage' ? 'Outside our course coverage' : 'No nearby courses found';
+  const emptyLabel = state.reason === 'no-coverage' ? 'OpenGolfAPI only covers the US right now' : 'Add a course to get started';
+
   return heroTileMarkup({
     href: state.course ? `#/round/new?course=${state.course.id}` : '#/round/new',
     extraClass: state.course ? '' : 'tile--hero-empty',
     ariaLabel: state.course ? `Start a new round at ${state.course.name}` : 'Find a course to play',
-    eyebrow: state.course ? 'Start round' : 'Locating you…',
-    courseLabel: state.course ? state.course.name : 'Finding nearest course…',
+    eyebrow: state.course ? 'Start round' : state.resolved ? emptyEyebrow : 'Locating you…',
+    courseLabel: state.course ? state.course.name : state.resolved ? emptyLabel : 'Finding nearest course…',
     cta: 'New round →',
     location: state.course?.location || null,
   });
@@ -163,7 +171,13 @@ async function resolveNearestAndUpdate(fallbackCourse) {
       ...apiResults.filter((c) => c.lat != null).map((c) => ({ kind: 'api', course: c, location: { lat: c.lat, lng: c.lng } })),
     ];
     if (!candidates.length) {
-      finalizeTile(fallbackCourse, null);
+      // OpenGolfAPI's own coverage is the US only (its nearest-course
+      // lookup resolves your state from lat/lng — see js/usStates.js). No
+      // matching state at all is a real, distinct reason to say "we don't
+      // cover this area" rather than the generic "nothing nearby" a US
+      // location with genuinely no courses in range would get.
+      const reason = statesContainingPoint(pos.lat, pos.lng).length ? 'empty' : 'no-coverage';
+      finalizeTile(fallbackCourse, null, null, reason);
       return;
     }
     candidates.sort((a, b) => haversineMeters(pos, a.location) - haversineMeters(pos, b.location));
@@ -184,12 +198,12 @@ async function resolveNearestAndUpdate(fallbackCourse) {
 // Renders the tile's final state once we know whether a GPS-nearest
 // course was found: the nearest course if we got one, otherwise whatever
 // fallback we already had (or the "Find a course" CTA if there was none).
-function finalizeTile(fallbackCourse, nearestCourse, distanceMi) {
+function finalizeTile(fallbackCourse, nearestCourse, distanceMi, reason) {
   const slot = document.getElementById('round-tile-slot');
   if (!slot) return;
 
   if (!nearestCourse) {
-    slot.innerHTML = renderRoundTile({ mode: 'start', course: fallbackCourse });
+    slot.innerHTML = renderRoundTile({ mode: 'start', course: fallbackCourse, resolved: true, reason });
     mountHeroMap(fallbackCourse?.location || null);
     loadHeroWeather(fallbackCourse);
     return;

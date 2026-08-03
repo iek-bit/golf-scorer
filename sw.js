@@ -17,7 +17,7 @@
 // Registered from js/app.js with scope './' so it works from a GitHub
 // Pages subpath (e.g. /golf-scorer/) as well as a custom domain.
 
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const SHELL_CACHE = `fairway-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `fairway-runtime-${CACHE_VERSION}`;
 
@@ -27,14 +27,16 @@ const PRECACHE_URLS = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './css/styles.css?v=9',
-  './js/app.js?v=9',
+  './css/styles.css?v=10',
+  './js/app.js?v=10',
   './js/router.js',
   './js/header.js',
   './js/theme.js',
   './js/design.js',
   './js/ripple.js',
   './js/installPrompt.js',
+  './js/segmentedThumb.js',
+  './js/export.js',
   './js/stats.js',
   './js/geo.js',
   './js/usStates.js',
@@ -94,18 +96,30 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return; // never cache writes
 
   const url = new URL(request.url);
+  const isOwnOrigin = url.origin === self.location.origin;
 
-  // Navigations (opening/refreshing the app): network-first so you always
-  // get the latest shell when online, falling back to the cached shell
-  // when you don't have a connection.
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match('./index.html'))
-    );
+  // Navigations and same-origin app code (JS/CSS/manifest/icons) are
+  // network-first: while online, always run whatever was actually just
+  // deployed. This app has no per-file cache-busting — only app.js and
+  // styles.css get a `?v=` query string — so every other module
+  // (home.js, opengolfapi.js, storage.js, ...) lives at a bare,
+  // unversioned URL. Serving those stale-first (the previous strategy)
+  // meant a deploy that changed one module's shape could silently run
+  // that old module alongside a freshly-fetched app.js — a real cause of
+  // a blank/broken app that a hard refresh wouldn't even fix, since the
+  // service worker — not the browser's HTTP cache — was the one serving
+  // the mismatch. The cache here exists purely as an *offline* fallback,
+  // never preferred over a live network response.
+  if (request.mode === 'navigate' || isOwnOrigin) {
+    event.respondWith(networkFirst(request, SHELL_CACHE, request.mode === 'navigate' ? './index.html' : null));
     return;
   }
 
-  const isOwnOrigin = url.origin === self.location.origin;
+  // Cross-origin partners (fonts, Leaflet, map tiles, OpenGolfAPI) are
+  // different: their content doesn't change shape between one of *our*
+  // deploys, so serving a recent cached copy instantly (and refreshing
+  // it in the background) is a safe, worthwhile speed/offline win rather
+  // than a correctness risk.
   const isRuntimePartner =
     url.hostname.endsWith('unpkg.com') || // Leaflet
     url.hostname.endsWith('fonts.googleapis.com') ||
@@ -113,10 +127,25 @@ self.addEventListener('fetch', (event) => {
     url.hostname.includes('arcgisonline.com') || // Esri satellite tiles
     url.hostname.endsWith('opengolfapi.org');
 
-  if (!isOwnOrigin && !isRuntimePartner) return; // let the browser handle it normally
+  if (!isRuntimePartner) return; // let the browser handle it normally
 
-  event.respondWith(staleWhileRevalidate(request, isOwnOrigin ? SHELL_CACHE : RUNTIME_CACHE));
+  event.respondWith(staleWhileRevalidate(request, RUNTIME_CACHE));
 });
+
+async function networkFirst(request, cacheName, navigateFallbackUrl) {
+  const cache = await caches.open(cacheName);
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) cache.put(request, response.clone());
+    return response;
+  } catch {
+    // Offline (or the request itself failed) — fall back to whatever we
+    // have cached for this exact URL, and for a navigation specifically,
+    // fall further back to the cached app shell itself so the app still
+    // opens at all with no signal.
+    return (await cache.match(request)) || (navigateFallbackUrl && (await cache.match(navigateFallbackUrl))) || Response.error();
+  }
+}
 
 async function staleWhileRevalidate(request, cacheName) {
   const cache = await caches.open(cacheName);

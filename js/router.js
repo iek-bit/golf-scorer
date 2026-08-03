@@ -50,9 +50,30 @@ export async function renderRoute() {
     return;
   }
 
-  renderHeader(matched.meta || {});
-  await matched.handler(outlet, { ...matched.params, ...query });
-  outlet.scrollTo(0, 0);
+  try {
+    renderHeader(matched.meta || {});
+    await matched.handler(outlet, { ...matched.params, ...query });
+    outlet.scrollTo(0, 0);
+  } catch (err) {
+    // A screen that fails to render should never just leave the outlet
+    // blank (indistinguishable from a broken page with no way to
+    // recover) — show what broke and a way back, and log it for
+    // real debugging instead of a silent unhandled rejection.
+    console.error('Failed to render route', path, err);
+    outlet.innerHTML = `
+      <div class="empty-state">
+        <p>Something went wrong loading this screen.</p>
+        <p class="stats-note">${err?.message ? escapeHtmlForError(err.message) : ''}</p>
+        <a href="#/">Back to home</a>
+      </div>
+    `;
+  }
+}
+
+function escapeHtmlForError(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 export function initRouter() {
