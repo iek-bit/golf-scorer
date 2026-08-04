@@ -276,6 +276,23 @@ h2 {
   width: 36px;
 }
 
+.header-action-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-fairway-bright);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: right;
+}
+
+.header-action-btn:active {
+  opacity: 0.6;
+}
+
 .icon-btn {
   width: 36px;
   height: 36px;
@@ -687,6 +704,18 @@ h2 {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
   overflow: hidden;
+  max-height: 400px;
+  opacity: 1;
+  transform: scale(1);
+  transition: max-height 0.24s var(--ease-standard), opacity 0.2s var(--ease-standard), transform 0.24s var(--ease-standard), margin 0.24s var(--ease-standard);
+}
+
+.club-card.is-removing {
+  max-height: 0;
+  opacity: 0;
+  transform: scale(0.94);
+  margin-bottom: -10px; /* cancels the .plain-list gap so nothing after it visibly jumps down twice */
+  pointer-events: none;
 }
 
 .club-card .club-row {
@@ -1566,9 +1595,9 @@ h2 {
 
 /* Club picker — a bottom sheet over a scrim, shown right after a shot is
    tracked. Deliberately lightweight and skippable (one tap either way:
-   pick a club, or Skip) rather than a form you have to submit, since it
-   pops up after every tracked shot and needs to stay out of the way of
-   actually playing. */
+   pick a club, or Skip, or tap the backdrop) rather than a form you have
+   to submit, since it pops up after every tracked shot and needs to stay
+   out of the way of actually playing. */
 .club-picker-scrim {
   position: fixed;
   inset: 0;
@@ -1589,10 +1618,11 @@ h2 {
 .club-picker-sheet {
   width: 100%;
   max-width: 480px;
+  max-height: 80vh;
   background: var(--color-surface);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25);
-  padding: 18px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 20px calc(20px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -1605,28 +1635,66 @@ h2 {
   }
 }
 
-.club-picker-title {
-  font-weight: 700;
-  font-size: 16px;
-  text-align: center;
+.club-picker-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-line);
+  align-self: center;
 }
 
-.club-picker-chips {
+.club-picker-header {
   display: flex;
-  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.club-picker-title {
+  display: block;
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.club-picker-subtitle {
+  display: block;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+  margin-top: 3px;
+  line-height: 1.4;
+}
+
+.club-picker-help-btn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* A real grid, not wrapped flex chips — every tap target is the same
+   predictable size and lines up cleanly, which matters more here than it
+   would in a short one-off list since this sheet pops up after every
+   single tracked shot. */
+.club-picker-chips {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  justify-content: center;
+  overflow-y: auto;
+  padding: 2px;
 }
 
 .club-chip {
   border: 1px solid var(--color-line);
   background: var(--color-bg);
   color: var(--color-ink);
-  border-radius: 999px;
-  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  padding: 14px 8px;
+  min-height: 48px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  text-align: center;
 }
 
 .club-chip:active {
@@ -1636,9 +1704,12 @@ h2 {
   border-color: transparent;
 }
 
-.club-picker-sheet .text-btn {
+.club-picker-skip-btn {
   align-self: center;
+  min-height: 44px;
+  padding: 0 20px;
 }
+
 
 /* Rangefinder reads as a small floating badge over the top of the map,
    rather than its own row — same idea as the reference app's on-map

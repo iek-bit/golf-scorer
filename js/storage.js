@@ -157,4 +157,18 @@ export const storage = {
     const [player, courses, rounds, bags] = await Promise.all([read(KEYS.player, null), read(KEYS.courses, []), read(KEYS.rounds, []), read(KEYS.bags, [])]);
     return { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), player, courses, rounds, bags };
   },
+  // Full replace, not a merge — restoring a backup means "make this device
+  // match the file," not "combine the two." Only touches keys actually
+  // present (and shaped as expected) in the imported data, so a partial or
+  // hand-edited export doesn't wipe fields it never mentioned.
+  async importAll(data) {
+    if (!data || typeof data !== 'object') throw new Error('Not a valid export file.');
+    if (!Array.isArray(data.courses) && !Array.isArray(data.rounds) && !Array.isArray(data.bags) && !data.player) {
+      throw new Error("This doesn't look like a Fairway export file.");
+    }
+    if (Array.isArray(data.courses)) write(KEYS.courses, data.courses);
+    if (Array.isArray(data.rounds)) write(KEYS.rounds, data.rounds);
+    if (Array.isArray(data.bags)) write(KEYS.bags, data.bags);
+    if (data.player) write(KEYS.player, data.player);
+  },
 };

@@ -128,13 +128,20 @@ export async function renderPlay(outlet, params) {
   // makeRound() comment in models.js for the same note at the data level.
   function renderClubPicker() {
     return `
-      <div class="club-picker-scrim">
+      <div class="club-picker-scrim" id="club-picker-scrim">
         <div class="club-picker-sheet">
-          <span class="club-picker-title">What did you just hit?</span>
+          <div class="club-picker-handle"></div>
+          <div class="club-picker-header">
+            <div>
+              <span class="club-picker-title">What did you just hit?</span>
+              <span class="club-picker-subtitle">The club that got your ball to this spot — not what you're about to hit next.</span>
+            </div>
+            <button type="button" class="icon-btn club-picker-help-btn" id="club-picker-help-btn" aria-label="Why does this ask what I just hit?">?</button>
+          </div>
           <div class="club-picker-chips">
             ${bag.clubs.map((c) => `<button type="button" class="club-chip" data-club="${escapeHtml(c.name)}">${escapeHtml(c.name)}</button>`).join('')}
           </div>
-          <button type="button" class="text-btn" id="skip-club-btn">Skip</button>
+          <button type="button" class="text-btn club-picker-skip-btn" id="skip-club-btn">Skip</button>
         </div>
       </div>
     `;
@@ -154,6 +161,20 @@ export async function renderPlay(outlet, params) {
     document.getElementById('skip-club-btn').addEventListener('click', () => {
       pendingClubShotIndex = null;
       render();
+    });
+    // Tapping the dimmed backdrop (not the sheet itself) is the same as
+    // Skip — a very standard mobile-sheet expectation, and this prompt is
+    // explicitly optional, so there's nothing lost by honoring it here.
+    document.getElementById('club-picker-scrim').addEventListener('click', (e) => {
+      if (e.target.id === 'club-picker-scrim') {
+        pendingClubShotIndex = null;
+        render();
+      }
+    });
+    document.getElementById('club-picker-help-btn').addEventListener('click', () => {
+      window.alert(
+        'Pick the club for the shot that just landed here — the swing that got your ball TO this spot, not whatever you\'re about to hit next.\n\nExample: you drive off the tee, then walk up and track your ball\'s position — that shot is the Driver, even though you\'re now standing here about to hit your approach.'
+      );
     });
   }
 

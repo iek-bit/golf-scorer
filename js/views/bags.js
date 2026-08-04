@@ -61,7 +61,14 @@ export async function renderEditBag(outlet, params) {
 }
 
 function renderBagForm(outlet, { bag, isNew, bagCount }) {
-  const expanded = new Set(); // club ids currently showing brand/notes/rename fields
+  // Single expanded club at a time (accordion) — opening one closes
+  // whatever was open, since a stack of several expanded detail forms on
+  // a phone screen is exactly what gets unwieldy fast.
+  let expandedClubId = null;
+  // The brand value a field had when it was focused — compared against
+  // on blur to tell "actually changed" from "tapped in and back out"
+  // before offering to cascade it to every other club.
+  let brandFieldOriginalValue = null;
 
   outlet.innerHTML = `
     <section class="panel">
@@ -76,19 +83,23 @@ function renderBagForm(outlet, { bag, isNew, bagCount }) {
         <input type="text" id="new-club-input" placeholder="Add a club…" autocomplete="off" />
         <button type="submit" class="btn btn-secondary">Add</button>
       </form>
-      <button type="button" class="btn btn-primary btn-block" id="save-bag-btn">Save bag</button>
       ${!isNew && bagCount > 1 ? `<button type="button" class="text-btn text-btn-danger abandon-round-btn" id="delete-bag-btn">Delete bag</button>` : ''}
     </section>
   `;
+
+  // The header's Save button (see header.js / app.js route meta) is the
+  // only save action now — a full-width button in the scrolling content
+  // read as "there might also be autosave," which there wasn't.
+  document.getElementById('header-action-btn')?.addEventListener('click', saveBag);
 
   const clubList = document.getElementById('club-list');
 
   function renderClubRows() {
     clubList.innerHTML = bag.clubs
       .map((c, i) => {
-        const isOpen = expanded.has(c.id);
+        const isOpen = expandedClubId === c.id;
         return `
-      <div class="club-card ${isOpen ? 'is-expanded' : ''}">
+      <div class="club-card ${isOpen ? 'is-expanded' : ''}" data-club-id="${c.id}">
         <div class="list-row club-row">
           <button type="button" class="club-row-summary" data-toggle="${c.id}">
             <span class="list-row-name">${escapeHtml(c.name)}</span>
@@ -131,8 +142,7 @@ function renderBagForm(outlet, { bag, isNew, bagCount }) {
     const toggleBtn = e.target.closest('[data-toggle]');
     if (toggleBtn) {
       const id = toggleBtn.dataset.toggle;
-      if (expanded.has(id)) expanded.delete(id);
-      else expanded.add(id);
+      expandedClubId = expandedClubId === id ? null : id; // tap the open one again to close it
       renderClubRows();
       return;
     }
@@ -148,15 +158,40 @@ function renderBagForm(outlet, { bag, isNew, bagCount }) {
     }
     const removeBtn = e.target.closest('.club-remove-btn');
     if (removeBtn) {
-      const [removed] = bag.clubs.splice(Number(removeBtn.dataset.index), 1);
-      if (removed) expanded.delete(removed.id);
-      renderClubRows();
+      removeClubWithAnimation(Number(removeBtn.dataset.index));
     }
   });
 
-  // Also delegated, on 'input' this time — edits a field without losing
-  // focus/cursor position, which re-running renderClubRows() on every
-  // keystroke would otherwise cause.
+  function removeClubWithAnimation(index) {
+    const card = clubList.querySelector(`.club-card[data-club-id="${bag.clubs[index].id}"]`);
+    if (!card) {
+      bag.clubs.splice(index, 1);
+      renderClubRows();
+      return;
+    }
+    // Collapse-and-fade, then actually remove the data once it's finished —
+    // an instant disappearance reads as "did that actually register?" on
+    // a touch screen; this makes the removal itself the confirmation.
+    card.classList.add('is-removing');
+    card.addEventListener(
+      'transitionend',
+      () => {
+        const removed = bag.clubs.splice(index, 1)[0];
+        if (removed && expandedClubId === removed.id) expandedClubId = null;
+        renderClubRows();
+      },
+      { once: true }
+    );
+    // Belt-and-suspenders: if transitionend never fires for some reason
+    // (reduced-motion, a browser quirk), don't leave the club stuck forever.
+    setTimeout(() => {
+      if (card.isConnected) card.dispatchEvent(new Event('transitionend'));
+    }, 260);
+  }
+
+  // Delegated 'input' (every keystroke, so the row's own summary name
+  // updates live) and 'focusin'/'change' (to detect a genuine, completed
+  // brand edit and offer to cascade it) on the same list.
   clubList.addEventListener('input', (e) => {
     const field = e.target.closest('.club-field');
     if (!field) return;
@@ -164,10 +199,34 @@ function renderBagForm(outlet, { bag, isNew, bagCount }) {
     if (!club) return;
     club[field.dataset.key] = field.value;
     if (field.dataset.key === 'name') {
-      const summaryName = clubList.querySelectorAll('.list-row-name')[Number(field.dataset.index)];
-      if (summaryName) summaryName.textContent = field.value || 'Unnamed club';
+      const row = field.closest('.club-card')?.querySelector('.list-row-name');
+      if (row) row.textContent = field.value || 'Unnamed club';
     }
   });
+
+  clubList.addEventListener('focusin', (e) => {
+    const field = e.target.closest('.club-field[data-key="brand"]');
+    if (field) brandFieldOriginalValue = field.value;
+  });
+
+  clubList.addEventListener(
+    'change',
+    (e) => {
+      const field = e.target.closest('.club-field[data-key="brand"]');
+      if (!field) return;
+      const newBrand = field.value.trim();
+      const changed = newBrand && newBrand !== (brandFieldOriginalValue || '').trim();
+      if (!changed || bag.clubs.length < 2) return;
+
+      // A lot of people carry one brand across their whole bag — offer to
+      // apply it everywhere instead of making that 14 separate edits.
+      const confirmed = window.confirm(`Set every club in this bag to "${newBrand}"?`);
+      if (!confirmed) return;
+      bag.clubs.forEach((c) => (c.brand = newBrand));
+      renderClubRows();
+    },
+    true // capture: 'change' doesn't bubble the same way on some inputs — capture phase catches it reliably either way
+  );
 
   renderClubRows();
 
@@ -181,14 +240,14 @@ function renderBagForm(outlet, { bag, isNew, bagCount }) {
     renderClubRows();
   });
 
-  document.getElementById('save-bag-btn').addEventListener('click', async () => {
+  async function saveBag() {
     bag.name = document.getElementById('bag-name-input').value.trim() || bag.name;
     // Empty club names (edited down to nothing) would be confusing to show
     // up as blank chips in the club picker while playing — drop them.
     bag.clubs = bag.clubs.filter((c) => c.name.trim());
     await storage.saveBag(bag);
     location.hash = '#/bags';
-  });
+  }
 
   const deleteBtn = document.getElementById('delete-bag-btn');
   if (deleteBtn) {

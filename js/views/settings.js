@@ -73,6 +73,10 @@ export async function renderSettings(outlet) {
         <button type="button" class="settings-row" id="export-data-btn">
           <span>Export my data</span>
         </button>
+        <button type="button" class="settings-row" id="import-data-btn">
+          <span>Import my data</span>
+        </button>
+        <input type="file" id="import-data-input" accept="application/json,.json" class="sr-only" />
         <button type="button" class="settings-row settings-row-danger" id="reset-data-btn">
           <span>Reset all data</span>
         </button>
@@ -161,6 +165,30 @@ export async function renderSettings(outlet) {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  });
+
+  const importInput = document.getElementById('import-data-input');
+  document.getElementById('import-data-btn').addEventListener('click', () => importInput.click());
+  importInput.addEventListener('change', async () => {
+    const file = importInput.files?.[0];
+    importInput.value = ''; // allow picking the same filename again later
+    if (!file) return;
+
+    const confirmed = window.confirm('Import this file? It replaces everything currently saved on this device — courses, rounds, and bags. This can\'t be undone.');
+    if (!confirmed) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      await storage.importAll(data);
+      // Every view holds its own in-memory copy of courses/rounds/bags —
+      // a full reload is the simplest way to guarantee nothing on screen
+      // is left showing stale pre-import data.
+      location.hash = '#/';
+      location.reload();
+    } catch (err) {
+      window.alert(`Couldn't import that file: ${err.message}`);
+    }
   });
 
   document.getElementById('reset-data-btn').addEventListener('click', async () => {

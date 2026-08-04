@@ -23,9 +23,12 @@ route('/settings', { title: 'Settings', backTo: '/' }, renderSettings);
 route('/courses', { title: 'Courses', backTo: '/settings' }, renderCourses);
 route('/courses/new', { title: 'Add course', backTo: '/courses' }, renderNewCourse);
 route('/courses/:id/edit', { title: 'Edit course', backTo: '/courses' }, renderEditCourse);
-route('/bags', { title: 'Bags', backTo: '/settings' }, renderBags);
-route('/bags/new', { title: 'New bag', backTo: '/bags' }, renderNewBag);
-route('/bags/:id/edit', { title: 'Edit bag', backTo: '/bags' }, renderEditBag);
+// Bags' backTo targets home, not settings — it has its own homescreen
+// entry point (the Clubs tile) now, not just Settings, and "back" should
+// match how most people actually got here.
+route('/bags', { title: 'Bags', backTo: '/' }, renderBags);
+route('/bags/new', { title: 'New bag', backTo: '/bags', action: { label: 'Save' } }, renderNewBag);
+route('/bags/:id/edit', { title: 'Edit bag', backTo: '/bags', action: { label: 'Save' } }, renderEditBag);
 route('/round/new', { title: 'New round', backTo: '/' }, renderNewRound);
 route('/round/:id/play', { title: 'Round', backTo: '/' }, renderPlay);
 route('/round/:id/summary', { title: 'Summary', backTo: '/' }, renderSummary);

@@ -8,7 +8,7 @@
 
 import { toggleTheme, syncThemeToggle } from './theme.js';
 
-export function renderHeader({ title, backTo } = {}) {
+export function renderHeader({ title, backTo, action } = {}) {
   const header = document.getElementById('app-header');
 
   if (!backTo) {
@@ -21,9 +21,15 @@ export function renderHeader({ title, backTo } = {}) {
     return;
   }
 
+  // `action` (e.g. { label: 'Save' }) replaces the plain centering spacer
+  // with a real button — the header's the "upper right" of the screen, the
+  // spot people actually expect a save/done action to live, not a full-
+  // width button buried in the scrollable content below. The route just
+  // declares the label (see app.js); the view itself wires the click
+  // handler after this renders — see e.g. views/bags.js.
   header.innerHTML = `
     <a class="icon-btn back-btn" href="#${backTo}" aria-label="Back">‹</a>
     <h1 class="header-title">${title || ''}</h1>
-    <span class="header-spacer" aria-hidden="true"></span>
+    ${action ? `<button type="button" id="header-action-btn" class="header-action-btn">${action.label}</button>` : `<span class="header-spacer" aria-hidden="true"></span>`}
   `;
 }
