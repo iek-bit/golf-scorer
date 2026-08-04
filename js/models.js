@@ -46,21 +46,67 @@ export function makeCourse({ name, numHoles, holes, source = 'manual', externalI
   };
 }
 
+// Starting point for every new bag — a standard set covering driver
+// through wedges. No putter: putts are tracked separately from GPS shot
+// distance (see holeScores[].putts vs .shots below), so a putter would
+// never be a meaningful choice in the club picker. Easy to edit from here
+// (js/views/bags.js) — this is just a reasonable default, not a fixed list.
+export const DEFAULT_CLUBS = [
+  'Driver',
+  '3 Wood',
+  '5 Wood',
+  'Hybrid',
+  '3 Iron',
+  '4 Iron',
+  '5 Iron',
+  '6 Iron',
+  '7 Iron',
+  '8 Iron',
+  '9 Iron',
+  'PW',
+  'GW',
+  'SW',
+  'LW',
+];
+
 /**
- * @param {{courseId: string, holesPlayed: '9'|'18'|'front9'|'back9', holeNumbers: number[]}} args
+ * A bag is just a named, ordered list of clubs. Multiple bags exist for
+ * people who carry different setups (e.g. a full bag vs. a links/travel
+ * bag) — which one was in play for a round is recorded as `round.bagId`,
+ * chosen at round start if more than one bag exists (see js/views/newRound.js).
+ * @param {{name?: string, clubs?: string[]}} args
  */
-export function makeRound({ courseId, holesPlayed, holeNumbers }) {
+export function makeBag({ name = 'My Bag', clubs = DEFAULT_CLUBS } = {}) {
+  const now = new Date().toISOString();
+  return {
+    id: makeId(),
+    name,
+    clubs: clubs.map((c) => (typeof c === 'string' ? { id: makeId(), name: c, brand: '', notes: '' } : { brand: '', notes: '', ...c })),
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * @param {{courseId: string, holesPlayed: '9'|'18'|'front9'|'back9', holeNumbers: number[], bagId?: string|null}} args
+ */
+export function makeRound({ courseId, holesPlayed, holeNumbers, bagId = null }) {
   const now = new Date().toISOString();
   return {
     id: makeId(),
     courseId,
     holesPlayed,
+    bagId, // which bag was carried this round — see makeBag() above. null for rounds started before bags existed.
     startedAt: now,
     completedAt: null,
-    // shots: [{ lat, lng, capturedAt }] — GPS-tracked strokes for this hole,
-    // in order. shots[0] approximates the tee; the last one approximates
-    // the pin. `strokes` stays the authoritative score even if some shots
-    // were logged manually (no location) via the +/- fallback.
+    // shots: [{ lat, lng, capturedAt, club? }] — GPS-tracked strokes for
+    // this hole, in order. shots[0] approximates the tee and is never
+    // itself a swing (nothing to assign a club to); every shot after that
+    // is the *result* of a swing, so its `club` (optional — see the
+    // shot-tracking chip picker in views/play.js) is the club that
+    // produced THAT shot, arriving at that position — not whatever's
+    // about to be hit next. `strokes` stays the authoritative score even
+    // if some shots were logged manually (no location) via the +/- fallback.
     holeScores: holeNumbers.map((n) => ({ holeNumber: n, strokes: null, putts: null, shots: [] })),
   };
 }

@@ -1,5 +1,5 @@
 import { storage } from '../storage.js';
-import { computeStats } from '../stats.js';
+import { computeStats, computeClubStats } from '../stats.js';
 import { toParText, escapeHtml, totalForRound } from './home.js';
 import { weatherIconSvg, weatherConditionLabel } from '../api/weather.js';
 import { syncSegmentedThumb } from '../segmentedThumb.js';
@@ -9,8 +9,11 @@ const WEATHER_FILTERS = ['sun', 'cloud', 'rain', 'snow'];
 export async function renderStats(outlet) {
   const [rounds, courses] = await Promise.all([storage.getRounds(), storage.getCourses()]);
   const stats = computeStats(rounds, courses);
+  // Every round, not just finished ones — a shot tracked mid-round is
+  // real data, no reason to make club stats wait for "Finish round."
+  const clubStats = computeClubStats(rounds);
 
-  if (!stats.roundsPlayed) {
+  if (!stats.roundsPlayed && !clubStats.length) {
     outlet.innerHTML = `
       <section class="panel">
         <p class="empty-state">No completed rounds yet.<br />Finish a round and your stats will show up here.</p>
@@ -26,6 +29,7 @@ export async function renderStats(outlet) {
   const availableConditions = WEATHER_FILTERS.filter((cond) => completed.some((r) => r.weather?.condition === cond));
 
   let activeFilter = null; // null = all
+  let ignoreOutliers = true; // default to the more representative number; toggle shows the raw one instead
 
   render();
 
@@ -35,6 +39,9 @@ export async function renderStats(outlet) {
 
     outlet.innerHTML = `
       <section class="panel">
+        ${
+          stats.roundsPlayed
+            ? `
         <div class="stat-block-grid">
           <div class="stat-block">
             <span class="stat-block-value">${stats.roundsPlayed}</span>
@@ -65,9 +72,17 @@ export async function renderStats(outlet) {
         </div>
 
         <p class="stats-note">
-          More detailed stats — by club, distance, landing type, and course — arrive once shot tracking is built.
+          More detailed stats — by distance, landing type, and course — arrive once shot tracking is built out further.
         </p>
+        `
+            : ''
+        }
 
+        ${clubStats.length ? renderClubStatsSection() : ''}
+
+        ${
+          stats.roundsPlayed
+            ? `
         <div class="panel-header">
           <h2>Recent rounds</h2>
         </div>
@@ -78,6 +93,9 @@ export async function renderStats(outlet) {
           recent.length
             ? `<ul class="scorecard-list">${recent.map((r) => renderRoundRow(r, courses)).join('')}</ul>`
             : `<p class="empty-state small-empty-state">No rounds played in that weather yet.</p>`
+        }
+        `
+            : ''
         }
       </section>
     `;
@@ -104,6 +122,71 @@ export async function renderStats(outlet) {
         renderStats(outlet); // full re-render — stats totals shift too
       });
     });
+
+    const outliersRow = document.getElementById('ignore-outliers-row');
+    if (outliersRow) {
+      outliersRow.addEventListener('click', (e) => {
+        e.preventDefault();
+        ignoreOutliers = !ignoreOutliers;
+        render();
+      });
+    }
+  }
+
+  function renderClubStatsSection() {
+    return `
+      <div class="panel-header">
+        <h2>By club</h2>
+      </div>
+      <label class="settings-row settings-row-toggle" id="ignore-outliers-row">
+        <span>
+          Ignore outliers in average
+          <span class="settings-row-subtext">${ignoreOutliers ? 'Mishits and flukes excluded' : 'Every tracked shot counted'}</span>
+        </span>
+        <span class="toggle-switch ${ignoreOutliers ? 'is-on' : ''}" role="switch" aria-checked="${ignoreOutliers}" tabindex="0"></span>
+      </label>
+      <div class="club-stats-list">
+        ${clubStats.map((c) => renderClubStatCard(c)).join('')}
+      </div>
+    `;
+  }
+
+  function renderClubStatCard(c) {
+    const avg = ignoreOutliers ? c.averageExcludingOutliers : c.average;
+    return `
+      <div class="club-stat-card">
+        <div class="club-stat-header">
+          <span class="club-stat-name">${escapeHtml(c.club)}</span>
+          <span class="club-stat-count">${c.shotCount} shot${c.shotCount === 1 ? '' : 's'}</span>
+        </div>
+        <div class="club-stat-numbers">
+          <div class="club-stat-number">
+            <span class="club-stat-value">${Math.round(avg)}</span>
+            <span class="club-stat-label">avg yds</span>
+          </div>
+          <div class="club-stat-number">
+            <span class="club-stat-value">${Math.round(c.longest)}</span>
+            <span class="club-stat-label">longest</span>
+          </div>
+        </div>
+        ${
+          c.outliers.length
+            ? `
+        <details class="club-stat-outliers">
+          <summary>${c.outliers.length} outlier${c.outliers.length === 1 ? '' : 's'}</summary>
+          <ul class="club-outlier-list">
+            ${c.outliers
+              .map(
+                (o) =>
+                  `<li>${Math.round(o.distanceYards)} yds · ${new Date(o.capturedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</li>`
+              )
+              .join('')}
+          </ul>
+        </details>`
+            : ''
+        }
+      </div>
+    `;
   }
 
   function renderWeatherFilter() {

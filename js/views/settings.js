@@ -66,6 +66,10 @@ export async function renderSettings(outlet) {
           <span>Manage courses</span>
           <span class="settings-row-chevron">›</span>
         </a>
+        <a class="settings-row" href="#/bags">
+          <span>Manage bags</span>
+          <span class="settings-row-chevron">›</span>
+        </a>
         <button type="button" class="settings-row" id="export-data-btn">
           <span>Export my data</span>
         </button>

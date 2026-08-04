@@ -83,7 +83,8 @@ export function weatherIconSvg(condition, size = 16) {
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
 }
 
-
+/**
+ * @param {string} externalId — an OpenGolfAPI course id (course.externalId)
  * @returns {Promise<{tempF, windSpeedMph, windDirectionDeg, windGustMph, condition: 'sun'|'cloud'|'rain'|'snow', fetchedAt}|null>}
  */
 export async function getCourseWeather(externalId) {

@@ -16,7 +16,7 @@ let searchDebounce = null;
 // instead of dropping the user into a blank searchable list that doesn't
 // even show the course that was just suggested.
 export async function renderNewRound(outlet, params = {}) {
-  const localCourses = await storage.getCourses();
+  const [localCourses, bags] = await Promise.all([storage.getCourses(), storage.getBags()]);
   const suggested = params.course ? localCourses.find((c) => c.id === params.course) : null;
 
   let step = suggested ? 'holes' : 'course'; // 'course' | 'holes'
@@ -193,6 +193,16 @@ export async function renderNewRound(outlet, params = {}) {
               ${opts.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
             </select>
           </label>
+          ${
+            bags.length > 1
+              ? `<label class="field">
+                   <span>Which bag are you carrying?</span>
+                   <select name="bagId">
+                     ${bags.map((b) => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('')}
+                   </select>
+                 </label>`
+              : ''
+          }
           <button type="submit" class="btn btn-primary btn-block">Start round</button>
         </form>
         ${!viaSuggestion ? `<button type="button" class="btn btn-secondary btn-block" id="change-course-btn">Choose a different course</button>` : ''}
@@ -209,7 +219,8 @@ export async function renderNewRound(outlet, params = {}) {
       const data = new FormData(e.target);
       const holesPlayed = data.get('holesPlayed');
       const holeNumbers = holeNumbersFor(holesPlayed);
-      const round = makeRound({ courseId: selectedCourse.id, holesPlayed, holeNumbers });
+      const bagId = bags.length > 1 ? data.get('bagId') : bags[0].id;
+      const round = makeRound({ courseId: selectedCourse.id, holesPlayed, holeNumbers, bagId });
       await storage.saveRound(round);
       location.hash = `#/round/${round.id}/play`;
 

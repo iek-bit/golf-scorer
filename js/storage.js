@@ -7,12 +7,13 @@
 // that calls `storage.getCourses()` etc. keeps working unmodified, because
 // it already awaits a Promise today.
 
-import { SCHEMA_VERSION } from './models.js';
+import { SCHEMA_VERSION, makeBag } from './models.js';
 
 const KEYS = {
   player: 'golf.player',
   courses: 'golf.courses',
   rounds: 'golf.rounds',
+  bags: 'golf.bags',
   theme: 'golf.theme',
   design: 'golf.design', // 'standard' | 'm3' | 'glass' — manual choice, used when designAuto is false
   designAuto: 'golf.designAuto', // true = follow the device's OS family automatically
@@ -86,6 +87,38 @@ export const storage = {
     write(KEYS.rounds, read(KEYS.rounds, []).filter((r) => r.id !== id));
   },
 
+  // --- bags (clubs) ---
+  // Lazily seeded: the very first read ever creates one default bag (a
+  // standard club set) rather than requiring some separate "first run"
+  // setup step. Every read after that just returns what's actually saved.
+  async getBags() {
+    const bags = read(KEYS.bags, []);
+    if (bags.length) return bags;
+    const seeded = [makeBag()];
+    write(KEYS.bags, seeded);
+    return seeded;
+  },
+  async getBag(id) {
+    return (await this.getBags()).find((b) => b.id === id) || null;
+  },
+  async saveBag(bag) {
+    const bags = read(KEYS.bags, []);
+    const idx = bags.findIndex((b) => b.id === bag.id);
+    bag.updatedAt = new Date().toISOString();
+    if (idx >= 0) bags[idx] = bag;
+    else bags.push(bag);
+    write(KEYS.bags, bags);
+    return bag;
+  },
+  async deleteBag(id) {
+    const remaining = read(KEYS.bags, []).filter((b) => b.id !== id);
+    // Never leave zero bags — the club picker and "which bag?" round-start
+    // step both assume at least one exists. Deleting down to the last one
+    // just isn't offered in the UI (see views/bags.js), this is a second,
+    // deeper backstop against ending up with none.
+    write(KEYS.bags, remaining.length ? remaining : [makeBag()]);
+  },
+
   // --- theme preference (light/dark) ---
   async getThemePreference() {
     return read(KEYS.theme, null); // null = follow system setting
@@ -121,7 +154,7 @@ export const storage = {
     Object.values(KEYS).forEach((k) => localStorage.removeItem(k));
   },
   async exportAll() {
-    const [player, courses, rounds] = await Promise.all([read(KEYS.player, null), read(KEYS.courses, []), read(KEYS.rounds, [])]);
-    return { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), player, courses, rounds };
+    const [player, courses, rounds, bags] = await Promise.all([read(KEYS.player, null), read(KEYS.courses, []), read(KEYS.rounds, []), read(KEYS.bags, [])]);
+    return { schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), player, courses, rounds, bags };
   },
 };

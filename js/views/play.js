@@ -17,6 +17,10 @@ export async function renderPlay(outlet, params) {
     outlet.innerHTML = `<p class="empty-state">That round's course was deleted. <a href="#/">Back home</a></p>`;
     return;
   }
+  // Only rounds started after bags existed have one — see makeRound() in
+  // models.js. No bag means no club picker at all for this round, rather
+  // than guessing which bag to attribute new shots to.
+  const bag = round.bagId ? await storage.getBag(round.bagId) : null;
 
   let currentIndex = round.holeScores.findIndex((h) => h.strokes == null);
   if (currentIndex === -1) currentIndex = round.holeScores.length - 1;
@@ -25,6 +29,10 @@ export async function renderPlay(outlet, params) {
   let positionAttemptedForHole = null; // holeNumber we've already tried to locate once
   let trackShotError = null;
   let editingPar = false;
+  // Index into the CURRENT hole's shots[] awaiting a club pick — set right
+  // after trackShot() records a position, cleared on pick, skip, undo, or
+  // navigating away from the hole. null = no picker showing.
+  let pendingClubShotIndex = null;
 
   render();
 
@@ -88,6 +96,8 @@ export async function renderPlay(outlet, params) {
 
         <button type="button" class="text-btn text-btn-danger abandon-round-btn" id="abandon-round-btn">Abandon round</button>
       </section>
+
+      ${bag && pendingClubShotIndex != null ? renderClubPicker() : ''}
     `;
 
     renderShotMap(holeScore, holeDef, lastKnownPosition);
@@ -106,8 +116,45 @@ export async function renderPlay(outlet, params) {
     document.getElementById('abandon-round-btn').addEventListener('click', abandonRound);
     attachScorecardStripHandlers();
     attachParControlHandlers(holeDef);
+    if (bag && pendingClubShotIndex != null) attachClubPickerHandlers();
 
     maybeAutoFetchPosition(holeScore);
+  }
+
+  // "What did you just hit?" — not "what will you hit next." The club
+  // picked here is attributed to the shot that just landed at the spot
+  // you tracked (shots[pendingClubShotIndex]), which is the swing that
+  // produced it, not whatever you're about to play from here. See the
+  // makeRound() comment in models.js for the same note at the data level.
+  function renderClubPicker() {
+    return `
+      <div class="club-picker-scrim">
+        <div class="club-picker-sheet">
+          <span class="club-picker-title">What did you just hit?</span>
+          <div class="club-picker-chips">
+            ${bag.clubs.map((c) => `<button type="button" class="club-chip" data-club="${escapeHtml(c.name)}">${escapeHtml(c.name)}</button>`).join('')}
+          </div>
+          <button type="button" class="text-btn" id="skip-club-btn">Skip</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function attachClubPickerHandlers() {
+    document.querySelectorAll('.club-chip').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const holeScore = round.holeScores[currentIndex];
+        const shot = holeScore.shots[pendingClubShotIndex];
+        if (shot) shot.club = btn.dataset.club;
+        pendingClubShotIndex = null;
+        await storage.saveRound(round);
+        render();
+      });
+    });
+    document.getElementById('skip-club-btn').addEventListener('click', () => {
+      pendingClubShotIndex = null;
+      render();
+    });
   }
 
   async function abandonRound() {
@@ -152,6 +199,7 @@ export async function renderPlay(outlet, params) {
         currentIndex = Number(btn.dataset.index);
         positionAttemptedForHole = null;
         editingPar = false;
+        pendingClubShotIndex = null;
         render();
       });
     });
@@ -238,6 +286,7 @@ export async function renderPlay(outlet, params) {
       holeScore.shots.push({ lat: pos.lat, lng: pos.lng, capturedAt: new Date().toISOString() });
       holeScore.strokes = (holeScore.strokes ?? 0) + 1;
       await storage.saveRound(round);
+      if (bag) pendingClubShotIndex = holeScore.shots.length - 1; // prompt for the shot that just landed here
     } catch (err) {
       trackShotError = err.message;
     }
@@ -248,6 +297,7 @@ export async function renderPlay(outlet, params) {
     const holeScore = round.holeScores[currentIndex];
     if (!holeScore.shots.length) return;
     holeScore.shots.pop();
+    pendingClubShotIndex = null; // whatever it was for is gone (or renumbered) either way
     if (holeScore.shots.length === 0) {
       // Undid the "start hole" marker itself — back to square one.
       const holeDef = course.holes.find((h) => h.number === holeScore.holeNumber);
@@ -290,6 +340,7 @@ export async function renderPlay(outlet, params) {
     currentIndex = Math.min(round.holeScores.length - 1, Math.max(0, currentIndex + delta));
     positionAttemptedForHole = null;
     editingPar = false;
+    pendingClubShotIndex = null;
     render();
   }
 
@@ -299,6 +350,7 @@ export async function renderPlay(outlet, params) {
       currentIndex += 1;
       positionAttemptedForHole = null;
       editingPar = false;
+      pendingClubShotIndex = null;
       render();
     } else {
       round.completedAt = new Date().toISOString();

@@ -9,13 +9,14 @@ import { getCourseWeather, weatherIconSvg, weatherConditionLabel, degToCompass }
 import { statesContainingPoint } from '../usStates.js';
 
 export async function renderHome(outlet) {
-  const [rounds, courses] = await Promise.all([storage.getRounds(), storage.getCourses()]);
+  const [rounds, courses, bags] = await Promise.all([storage.getRounds(), storage.getCourses(), storage.getBags()]);
   const heroState = computeHeroState(rounds, courses);
 
   outlet.innerHTML = `
     <div class="tile-stack">
       <div id="round-tile-slot">${renderRoundTile(heroState)}</div>
       ${renderStatsTile(rounds, courses)}
+      ${renderBagsTile(bags)}
       ${renderSettingsTile()}
     </div>
   `;
@@ -287,7 +288,35 @@ function renderStatsTile(rounds, courses) {
   });
 }
 
-// --- Tile 3: settings.
+// --- Tile 3: clubs/bags preview; tapping opens bag management.
+
+function renderBagsTile(bags) {
+  return tile({
+    href: '#/bags',
+    extraClass: 'tile--bags',
+    ariaLabel: 'Manage clubs and bags',
+    innerHtml: `
+      <div class="bags-tile-header">
+        <span class="bags-tile-label">Clubs</span>
+        <span class="bags-tile-chevron">›</span>
+      </div>
+      <div class="bags-tile-list">
+        ${bags
+          .map(
+            (b) => `
+          <div class="bags-tile-bag">
+            <span class="bags-tile-bag-name">${escapeHtml(b.name)}</span>
+            <span class="bags-tile-bag-clubs">${b.clubs.length ? b.clubs.map((c) => escapeHtml(c.name)).join(', ') : 'No clubs yet'}</span>
+          </div>
+        `
+          )
+          .join('')}
+      </div>
+    `,
+  });
+}
+
+// --- Tile 4: settings.
 
 function renderSettingsTile() {
   return tile({
