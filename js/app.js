@@ -1,7 +1,6 @@
 import './installPrompt.js';
 import { initRouter, route } from './router.js';
 import { initTheme } from './theme.js';
-import { initDesign } from './design.js';
 import { initRipple } from './ripple.js';
 import { renderHome } from './views/home.js';
 import { renderCourses, renderNewCourse, renderEditCourse } from './views/courses.js';
@@ -41,11 +40,6 @@ try {
   initTheme();
 } catch (err) {
   console.error('initTheme failed', err);
-}
-try {
-  initDesign();
-} catch (err) {
-  console.error('initDesign failed', err);
 }
 try {
   initRipple();

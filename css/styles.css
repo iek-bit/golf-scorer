@@ -1,157 +1,141 @@
 /* ============================================================
-   Fairway — design tokens
-   Base is now a neutral warm-gray / charcoal (not green-tinted) —
-   fairway green is reserved for accents: buttons, badges, the
-   hero tile. Sand, sky, and bogey/double still come from the
-   course itself, not a generic UI kit.
+   Fairway — Material 3 design tokens
+
+   Every color role below is generated (not hand-picked) from one seed —
+   Fairway's own brand green, #1f4d3a — run through Google's actual M3
+   color algorithm (Material Color Utilities, HCT color space, TonalSpot
+   scheme, standard contrast). Primary/secondary/tertiary/error and every
+   surface/outline tone are the real output of that algorithm for both
+   light and dark. Sand, sky, bogey, and double stay as their own
+   hand-set "extended" colors on top of the scheme — they're semantic
+   (a warning highlight, a location pin, scorecard conventions), not
+   brand color, and M3 explicitly leaves room for exactly that alongside
+   the generated roles rather than forcing every accent through them.
    ============================================================ */
 
 :root {
-  /* color — light */
-  --color-bg: #f5f5f3;
-  --color-surface: #ffffff;
-  --color-ink: #1a1c1b;
-  --color-ink-muted: #63695f;
-  --color-line: #e3e1da;
+  /* --- color: core M3 roles (light) --- */
+  --color-bg: #f5fbf5; /* surface */
+  --color-surface: #eaefea; /* surfaceContainer — cards sit a tone up from the page */
+  --color-surface-low: #eff5ef; /* surfaceContainerLow — recessed areas, text field fill */
+  --color-surface-high: #e4eae4; /* surfaceContainerHigh — nested emphasis (sheet headers, active rail pill) */
+  --color-surface-highest: #dee4de; /* surfaceContainerHighest — highest-emphasis container */
+  --color-ink: #171d1a; /* onSurface */
+  --color-ink-muted: #404943; /* onSurfaceVariant */
+  --color-line: #bfc9c2; /* outlineVariant — hairlines */
+  --color-outline: #707973; /* outline — stronger borders (unfilled inputs, dividers) */
 
-  --color-fairway: #1f4d3a;
-  --color-fairway-bright: #2e6b4c;
+  --color-fairway: #1f6a4e; /* primary */
+  --color-on-fairway: #ffffff; /* onPrimary */
+  --color-fairway-container: #a8f2ce; /* primaryContainer */
+  --color-on-fairway-container: #005138; /* onPrimaryContainer */
+
+  --color-secondary: #4d6357;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #cfe9d9;
+  --color-on-secondary-container: #354b40;
+
+  --color-tertiary: #3d6373;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #c1e8fb;
+  --color-on-tertiary-container: #244c5b;
+
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  --color-inverse-surface: #2c322e;
+  --color-inverse-on-surface: #edf2ec;
+  --color-inverse-primary: #8dd5b3;
+  --color-scrim: #000000;
+
+  /* --- color: extended (hand-set, not algorithmic — see banner above) --- */
   --color-sand: #b99a63;
-  --color-sky: #46707f;
   --color-bogey: #9c4b2c;
   --color-double: #74331f;
 
-  /* type */
-  --font-display: 'Fraunces', Georgia, serif;
-  --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* --- shape scale (official M3 corner radii) --- */
+  --shape-xs: 4px;
+  --shape-sm: 8px;
+  --shape-md: 12px;
+  --shape-lg: 16px;
+  --shape-xl: 28px;
+  --shape-full: 999px;
+
+  /* --- elevation (official M3 two-layer shadow tokens: a tight "key"
+     shadow at 30% opacity + a broad "ambient" shadow at 15%, both pure
+     black — this is what makes M3 elevation read consistently whether
+     the surface under it is light or dark) --- */
+  --elevation-0: none;
+  --elevation-1: 0px 1px 2px rgba(0, 0, 0, 0.3), 0px 1px 3px 1px rgba(0, 0, 0, 0.15);
+  --elevation-2: 0px 1px 2px rgba(0, 0, 0, 0.3), 0px 2px 6px 2px rgba(0, 0, 0, 0.15);
+  --elevation-3: 0px 1px 3px rgba(0, 0, 0, 0.3), 0px 4px 8px 3px rgba(0, 0, 0, 0.15);
+  --elevation-3-up: 0px -1px 3px rgba(0, 0, 0, 0.3), 0px -4px 8px 3px rgba(0, 0, 0, 0.15); /* sheets sliding up from the bottom edge */
+  --elevation-4: 0px 2px 3px rgba(0, 0, 0, 0.3), 0px 6px 10px 4px rgba(0, 0, 0, 0.15);
+  --shadow-card: var(--elevation-1); /* Elevated Card / Elevated Button, per M3 */
+
+  /* --- state layers (official M3 opacities — hover/focus/press overlays
+     use currentColor at these opacities, see .m3-ripple and the shared
+     interactive-surface rule near the bottom of this file) --- */
+  --state-hover: 0.08;
+  --state-focus: 0.12;
+  --state-press: 0.12;
+
+  /* --- type (Roboto is THE Material typeface; scores stay in mono —
+     a scorecard convention, not branding, kept from every prior pass) --- */
+  --font-display: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
 
-  /* layout */
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 22px;
-  --shadow-card: 0 1px 2px rgba(20, 20, 18, 0.04), 0 4px 16px rgba(20, 20, 18, 0.06);
-  --header-height: 56px;
+  /* --- motion --- */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
 
-  /* motion */
-  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  /* --- layout --- */
+  --header-height: 56px;
+  --rail-width: 88px;
+  --content-max: 480px; /* compact (phone) column width — see the responsive section for medium/expanded */
 }
 
 [data-theme='dark'] {
-  /* color — dark: true neutral charcoal, not a green wash. Green comes
-     back only where it's an intentional accent (hero tile, buttons, badges). */
-  --color-bg: #121314;
-  --color-surface: #1b1c1e;
-  --color-ink: #ededea;
-  --color-ink-muted: #93958f;
-  --color-line: #2a2b2d;
+  --color-bg: #0f1512;
+  --color-surface: #1b211e;
+  --color-surface-low: #171d1a;
+  --color-surface-high: #252b28;
+  --color-surface-highest: #303632;
+  --color-ink: #dee4de;
+  --color-ink-muted: #bfc9c2;
+  --color-line: #404943;
+  --color-outline: #8a938c;
 
-  --color-fairway: #3f7c5a;
-  --color-fairway-bright: #57b085;
+  --color-fairway: #8dd5b3;
+  --color-on-fairway: #003826;
+  --color-fairway-container: #005138;
+  --color-on-fairway-container: #a8f2ce;
+
+  --color-secondary: #b3ccbe;
+  --color-on-secondary: #1f352a;
+  --color-secondary-container: #354b40;
+  --color-on-secondary-container: #cfe9d9;
+
+  --color-tertiary: #a5ccdf;
+  --color-on-tertiary: #073543;
+  --color-tertiary-container: #244c5b;
+  --color-on-tertiary-container: #c1e8fb;
+
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+
+  --color-inverse-surface: #dee4de;
+  --color-inverse-on-surface: #2c322e;
+  --color-inverse-primary: #1f6a4e;
+
   --color-sand: #c7a876;
-  --color-sky: #6d97a6;
   --color-bogey: #c97a54;
   --color-double: #de9877;
-}
-
-/* ============================================================
-   Design languages — Standard (above) / Material 3 / Liquid Glass
-   ============================================================
-   Every component in this file is already built on the --color-*,
-   --radius-*, --shadow-card, and --ease-standard tokens, so most of the
-   personality swap for M3 and Liquid Glass happens right here, by
-   redefining those tokens under [data-design='m3'|'glass'] rather than
-   forking every component's CSS. Component-specific treatment (glass
-   blur/specular, M3 ripple + pill buttons) follows in its own section
-   further down. A custom color palette (js/design.js) overrides
-   --color-fairway/-bright/-sand/-sky directly as inline styles on <html>,
-   which — being inline — outrank every block below regardless of design
-   language, which is why "custom colors apply to all three" just works
-   without design-specific plumbing.
-   ============================================================ */
-
-[data-design='m3'] {
-  --radius-sm: 12px;
-  --radius-md: 16px;
-  --radius-lg: 28px;
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 3px 1px rgba(0, 0, 0, 0.1);
-  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  /* Roboto is THE Material typeface — swapping it in (over this app's
-     branded Fraunces/Manrope pairing) is most of what makes M3 actually
-     read as Google's design language rather than a recolored version of
-     this app's own one. Scores stay in --font-mono (IBM Plex Mono) in
-     every design language — that's a scorecard convention, not branding. */
-  --font-display: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-body: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-[data-design='m3'][data-theme='light'] {
-  /* M3's "surface container" tones aren't neutral gray — they're the
-     primary hue heavily desaturated and lightened, which is why Google's
-     UI always reads as faintly tinted rather than flat white/gray. Built
-     from --color-fairway (or the active palette) via color-mix, so a
-     custom palette re-tints these automatically instead of staying gray. */
-  --color-bg: color-mix(in srgb, var(--color-fairway) 4%, #fbf9f6);
-  --color-surface: color-mix(in srgb, var(--color-fairway) 3%, #fffbff);
-  --color-surface-variant: color-mix(in srgb, var(--color-fairway) 14%, #e7e0e0);
-  --color-ink: #1c1b1b;
-  --color-ink-muted: #5c5f5a;
-  --color-line: color-mix(in srgb, var(--color-fairway) 10%, #cac5c4);
-}
-
-[data-design='m3'][data-theme='dark'] {
-  --color-bg: color-mix(in srgb, var(--color-fairway) 10%, #131313);
-  --color-surface: color-mix(in srgb, var(--color-fairway) 8%, #201f1f);
-  --color-surface-variant: color-mix(in srgb, var(--color-fairway) 22%, #454746);
-  --color-ink: #e6e2e1;
-  --color-ink-muted: #b8bcb6;
-  --color-line: color-mix(in srgb, var(--color-fairway) 18%, #3a3d3a);
-}
-
-[data-design='glass'] {
-  --radius-sm: 16px;
-  --radius-md: 22px;
-  --radius-lg: 34px;
-  --radius-capsule: 999px;
-  --shadow-card: 0 12px 34px rgba(20, 20, 18, 0.14);
-  --shadow-floating: 0 14px 38px rgba(10, 14, 12, 0.22);
-  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
-  /* SF Pro is Apple's system font; -apple-system/BlinkMacSystemFont
-     resolve to it natively on Apple devices with zero network fetch, and
-     fall back gracefully everywhere else. Same reasoning as Roboto above
-     for M3 — the typeface is a big, free part of "actually looking like
-     the platform" that a recolored card grid can't fake. */
-  --font-display: -apple-system, 'SF Pro Display', BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-  --font-body: -apple-system, 'SF Pro Text', BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-}
-
-[data-design='glass'][data-theme='light'] {
-  --color-bg: #eef1ec;
-  /* Genuinely translucent — low enough opacity that blurred page content
-     shows through, the way real Liquid Glass panels do, not just a
-     tinted solid card with a blur filter nobody can see the effect of. */
-  --color-surface: rgba(255, 255, 255, 0.42);
-  --color-ink: #1a1c1b;
-  --color-ink-muted: #5c6158;
-  --color-line: rgba(255, 255, 255, 0.55);
-  --glass-highlight: rgba(255, 255, 255, 0.9);
-  --glass-track: rgba(120, 124, 116, 0.16);
-  --glass-thumb: rgba(255, 255, 255, 0.92);
-  --glass-body-wash: radial-gradient(circle at 15% 0%, rgba(87, 176, 133, 0.2), transparent 45%),
-    radial-gradient(circle at 85% 100%, rgba(70, 112, 127, 0.18), transparent 50%);
-}
-
-[data-design='glass'][data-theme='dark'] {
-  --color-bg: #0c0e0c;
-  --color-surface: rgba(40, 42, 40, 0.4);
-  --color-ink: #f1f0ea;
-  --color-ink-muted: #9ba098;
-  --color-line: rgba(255, 255, 255, 0.14);
-  --glass-highlight: rgba(255, 255, 255, 0.22);
-  --glass-track: rgba(255, 255, 255, 0.14);
-  --glass-thumb: rgba(230, 230, 226, 0.95);
-  --glass-body-wash: radial-gradient(circle at 15% 0%, rgba(63, 124, 90, 0.32), transparent 45%),
-    radial-gradient(circle at 85% 100%, rgba(109, 151, 166, 0.24), transparent 50%);
 }
 
 /* ============================================================
@@ -199,12 +183,12 @@ ul {
 h1,
 h2 {
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 500;
   margin: 0;
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-fairway-bright);
+  outline: 2px solid var(--color-fairway);
   outline-offset: 2px;
 }
 
@@ -220,6 +204,13 @@ h2 {
   border: 0;
 }
 
+.text-link {
+  color: var(--color-fairway);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -230,18 +221,222 @@ h2 {
 }
 
 /* ============================================================
-   App shell & header
-   No bottom nav — the header is the only persistent chrome, and
-   its content is swapped per-route by js/header.js: wordmark +
-   theme toggle on home, back + title everywhere else.
+   State layers & ripple (M3's hover/focus/press language)
+
+   Applied to the same set of interactive classes js/ripple.js delegates
+   ripple-spawning to (see RIPPLE_SELECTOR there) — a shared ::after
+   overlay handles the static hover/focus wash, js/ripple.js's spawned
+   .m3-ripple span handles the animated press circle. Mouse-only (hover
+   is meaningless on touch, and this app now runs on real pointer
+   devices at tablet/desktop widths too).
    ============================================================ */
+
+.btn,
+.tile,
+.icon-btn,
+.segment-btn,
+.settings-row,
+.course-card,
+.score-row,
+.list-row,
+.strip-cell,
+.stepper-btn,
+.par-confirm-btn,
+.track-shot-btn,
+.text-btn,
+.nav-rail-item,
+.club-chip,
+.club-row-summary,
+.hero-price-details-btn,
+.hero-book-btn {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.btn::after,
+.tile::after,
+.icon-btn::after,
+.segment-btn::after,
+.settings-row::after,
+.course-card::after,
+.score-row::after,
+.list-row::after,
+.strip-cell::after,
+.stepper-btn::after,
+.par-confirm-btn::after,
+.track-shot-btn::after,
+.text-btn::after,
+.nav-rail-item::after,
+.club-chip::after::after,
+.club-row-summary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s var(--ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover::after,
+  .tile:hover::after,
+  .icon-btn:hover::after,
+  .segment-btn:hover::after,
+  .settings-row:hover::after,
+  .course-card:hover::after,
+  .score-row:hover::after,
+  .list-row:hover::after,
+  .strip-cell:hover::after,
+  .stepper-btn:hover::after,
+  .par-confirm-btn:hover::after,
+  .track-shot-btn:hover::after,
+  .text-btn:hover::after,
+  .nav-rail-item:hover::after,
+  .club-chip:hover::after,
+  .club-row-summary:hover::after {
+    opacity: var(--state-hover);
+  }
+}
+
+.btn:focus-visible::after,
+.tile:focus-visible::after,
+.icon-btn:focus-visible::after,
+.segment-btn:focus-visible::after,
+.settings-row:focus-visible::after,
+.course-card:focus-visible::after,
+.score-row:focus-visible::after,
+.list-row:focus-visible::after,
+.strip-cell:focus-visible::after,
+.stepper-btn:focus-visible::after,
+.par-confirm-btn:focus-visible::after,
+.track-shot-btn:focus-visible::after,
+.text-btn:focus-visible::after,
+.nav-rail-item:focus-visible::after,
+.club-chip:focus-visible::after:focus-visible::after,
+.club-row-summary:focus-visible::after {
+  opacity: var(--state-focus);
+}
+
+.m3-ripple-host {
+  position: relative;
+}
+
+.m3-ripple {
+  position: absolute;
+  z-index: 0;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: var(--state-press);
+  pointer-events: none;
+  transform: scale(0);
+  animation: m3-ripple-expand 420ms var(--ease-standard) forwards;
+}
+
+@keyframes m3-ripple-expand {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* Every one of the interactive classes above needs its real content
+   lifted above the ::after overlay + ripple (both z-index: 0). */
+.btn > *,
+.tile > *,
+.icon-btn > *,
+.segment-btn,
+.hero-eyebrow,
+.hero-course,
+.hero-price-row,
+.hero-cta {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================
+   App frame: nav rail (medium/expanded) + app shell
+   Compact (phone, <600px): no rail at all — the tile-stack home screen
+   IS the primary navigation there, same as before. Medium/expanded
+   widths get a persistent M3 navigation rail; see the responsive
+   section at the end of this file for exactly where it switches on.
+   ============================================================ */
+
+.app-frame {
+  display: flex;
+  min-height: 100vh;
+}
+
+.nav-rail {
+  display: none; /* switched on at medium+ widths — see responsive section */
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: var(--rail-width);
+  flex-shrink: 0;
+  padding: 20px 8px;
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-line);
+}
+
+/* Higher specificity than the bare .wordmark rule below (which the rail
+   wordmark also carries) — this is a deliberate override, not a race
+   against source order. */
+.nav-rail .wordmark {
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.nav-rail-items {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.nav-rail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0 8px;
+  border-radius: var(--shape-lg);
+  color: var(--color-ink-muted);
+  cursor: pointer;
+}
+
+.nav-rail-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 32px;
+  border-radius: var(--shape-full);
+  transition: background-color 0.18s var(--ease-standard);
+}
+
+.nav-rail-item.is-active .nav-rail-icon {
+  background: var(--color-secondary-container);
+  color: var(--color-on-secondary-container);
+}
+
+.nav-rail-item.is-active {
+  color: var(--color-ink);
+}
+
+.nav-rail-label {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
 
 .app-shell {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
   min-height: 100vh;
-  max-width: 480px;
-  margin: 0 auto;
   background: var(--color-bg);
 }
 
@@ -262,14 +457,16 @@ h2 {
 .wordmark {
   font-family: var(--font-display);
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--color-fairway-bright);
+  color: var(--color-fairway);
 }
 
 .header-title {
-  font-size: 17px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 500; /* M3 Title Large */
 }
 
 .header-spacer {
@@ -282,9 +479,10 @@ h2 {
   padding: 0 4px;
   border: none;
   background: transparent;
-  color: var(--color-fairway-bright);
-  font-size: 16px;
-  font-weight: 700;
+  color: var(--color-fairway);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
   text-align: right;
 }
@@ -294,16 +492,16 @@ h2 {
 }
 
 .icon-btn {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
   border: none;
-  background: var(--color-surface);
-  border-radius: 999px;
+  background: transparent;
+  color: var(--color-ink);
+  border-radius: var(--shape-full);
   font-size: 16px;
   cursor: pointer;
-  box-shadow: var(--shadow-card);
   transition: transform 0.15s var(--ease-standard);
 }
 
@@ -312,8 +510,7 @@ h2 {
 }
 
 .back-btn {
-  font-size: 22px;
-  line-height: 1;
+  color: var(--color-ink);
 }
 
 .view-outlet {
@@ -338,7 +535,8 @@ h2 {
 }
 
 .panel-header h2 {
-  font-size: 20px;
+  font-size: 22px;
+  line-height: 28px;
 }
 
 .empty-state {
@@ -349,24 +547,28 @@ h2 {
 }
 
 .empty-state a {
-  color: var(--color-fairway-bright);
+  color: var(--color-fairway);
   font-weight: 600;
 }
 
 /* ============================================================
-   Buttons
+   Buttons — M3 Filled (primary), Elevated (secondary), Text
+   Pill-shaped per M3's default button shape; primary relies on solid
+   color alone (elevation 0), secondary keeps a soft shadow (that's the
+   M3 "Elevated Button" variant — surface-tone fill + elevation-1).
    ============================================================ */
 
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 11px 18px;
-  border-radius: var(--radius-md);
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: var(--shape-full);
   border: none;
-  font-weight: 700;
-  font-size: 15px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
   transition: transform 0.12s var(--ease-standard), opacity 0.12s var(--ease-standard);
 }
@@ -377,15 +579,11 @@ h2 {
 
 .btn-primary {
   background: var(--color-fairway);
-  color: #fff;
-}
-
-[data-theme='dark'] .btn-primary {
-  color: #0d120f;
+  color: var(--color-on-fairway);
 }
 
 .btn-secondary {
-  background: var(--color-surface);
+  background: var(--color-surface-low);
   color: var(--color-ink);
   box-shadow: var(--shadow-card);
 }
@@ -411,10 +609,9 @@ h2 {
 
 .tile {
   display: flex;
-  border-radius: var(--radius-lg);
+  border-radius: var(--shape-lg);
   box-shadow: var(--shadow-card);
   transition: transform 0.12s var(--ease-standard);
-  overflow: hidden;
 }
 
 .tile:active {
@@ -431,7 +628,7 @@ h2 {
   position: relative;
   flex-direction: column;
   justify-content: flex-end;
-  gap: 2px;
+  gap: 3px;
   min-height: 200px;
   padding: 20px;
   color: #f4f3ec;
@@ -450,7 +647,7 @@ h2 {
   inset: 0;
   z-index: 2;
   background-image: linear-gradient(180deg, rgba(14, 23, 18, 0.1) 0%, rgba(14, 23, 18, 0.35) 55%, rgba(14, 23, 18, 0.85) 100%),
-    radial-gradient(circle at 78% 22%, rgba(87, 176, 133, 0.25), transparent 45%),
+    radial-gradient(circle at 78% 22%, rgba(141, 213, 179, 0.25), transparent 45%),
     repeating-linear-gradient(120deg, rgba(255, 255, 255, 0.03) 0px, rgba(255, 255, 255, 0.03) 2px, transparent 2px, transparent 26px);
 }
 
@@ -459,9 +656,9 @@ h2 {
 }
 
 /* Fills the whole tile as an invisible tap target — kept separate from
-   the directions button below so the two don't fight over clicks (an <a>
-   nested inside another <a> is invalid HTML and behaves inconsistently,
-   so they're siblings instead, with the button stacked above). */
+   the directions/booking buttons below so they don't fight over clicks
+   (an <a>/<button> nested inside another <a> is invalid HTML and
+   behaves inconsistently, so they're siblings instead, stacked above). */
 .tile-primary-link {
   position: absolute;
   inset: 0;
@@ -475,9 +672,9 @@ h2 {
   z-index: 5;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--shape-full);
   background: color-mix(in srgb, #0e1712 55%, transparent);
   backdrop-filter: blur(6px);
   color: #f4f3ec;
@@ -497,7 +694,7 @@ h2 {
   align-items: center;
   gap: 5px;
   padding: 6px 10px 6px 8px;
-  border-radius: 999px;
+  border-radius: var(--shape-full);
   background: color-mix(in srgb, #0e1712 55%, transparent);
   backdrop-filter: blur(6px);
   color: #f4f3ec;
@@ -505,33 +702,66 @@ h2 {
   font-weight: 600;
 }
 
-.hero-eyebrow,
-.hero-course,
-.hero-cta {
-  z-index: 3;
-}
-
 .hero-eyebrow {
   position: relative;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  opacity: 0.75;
+  opacity: 0.8;
 }
 
 .hero-course {
   position: relative;
   font-family: var(--font-display);
   font-size: 24px;
+  line-height: 32px;
+  font-weight: 600; /* M3 Headline Small, weighted up for legibility over a photo */
+  margin: 2px 0 0;
+}
+
+.hero-price-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+
+.hero-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #f4f3ec;
+}
+
+.hero-price--yoc {
+  color: #c1e8fb; /* tertiary-container-ish tint, reads as a distinct highlight from the plain price */
+}
+
+.hero-price-details-btn,
+.hero-book-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(244, 243, 236, 0.45);
+  border-radius: var(--shape-full);
+  padding: 4px 12px;
+  background: color-mix(in srgb, #0e1712 35%, transparent);
+  color: #f4f3ec;
+  font-size: 12px;
   font-weight: 600;
-  margin: 2px 0 6px;
+  cursor: pointer;
 }
 
 .hero-cta {
   position: relative;
   font-size: 13px;
   font-weight: 700;
-  color: #8fd6b0;
+  color: #8dd5b3;
 }
 
 /* --- Tile 2: stats summary --- */
@@ -596,7 +826,7 @@ h2 {
 
 .bags-tile-chevron {
   color: var(--color-ink-muted);
-  font-size: 18px;
+  display: inline-flex;
 }
 
 .bags-tile-list {
@@ -640,11 +870,123 @@ h2 {
 
 .settings-tile-chevron {
   color: var(--color-ink-muted);
-  font-size: 18px;
+  display: inline-flex;
 }
 
 /* ============================================================
-   Forms
+   Bottom sheet (shared: club picker in views/play.js, price details
+   in views/home.js) — a scrim + a panel that slides up from the
+   bottom edge, top corners only.
+   ============================================================ */
+
+.sheet-scrim,
+.club-picker-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: color-mix(in srgb, var(--color-scrim) 45%, transparent);
+  animation: sheet-fade-in 0.15s ease-out;
+}
+
+@keyframes sheet-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.sheet-panel,
+.club-picker-sheet {
+  width: 100%;
+  max-width: var(--content-max);
+  max-height: 80vh;
+  background: var(--color-surface-high);
+  border-radius: var(--shape-xl) var(--shape-xl) 0 0;
+  box-shadow: var(--elevation-3-up);
+  padding: 10px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: sheet-slide-up 0.22s var(--ease-emphasized-decelerate);
+  overflow-y: auto;
+}
+
+@keyframes sheet-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+.sheet-handle,
+.club-picker-handle {
+  width: 32px;
+  height: 4px;
+  border-radius: var(--shape-full);
+  background: var(--color-line);
+  align-self: center;
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sheet-title,
+.club-picker-title {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 17px;
+}
+
+.price-details-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.price-details-row:last-of-type {
+  border-bottom: none;
+}
+
+.price-details-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+}
+
+.price-details-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.price-details-text {
+  margin: 0;
+  padding-top: 4px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-ink-muted);
+  white-space: pre-wrap;
+}
+
+/* ============================================================
+   Forms — M3 outlined text fields (transparent fill, 1px outline,
+   2px primary outline on focus). Labels stay above the field rather
+   than the M3 default floating-inside-the-field label: with a fixed
+   external label already established across every screen in this app,
+   moving to a floating label would mean rebuilding every form's markup
+   for a purely cosmetic swap — not worth it, and plenty of real M3
+   settings-style UIs use a fixed label above a field just like this.
    ============================================================ */
 
 .form {
@@ -667,20 +1009,43 @@ h2 {
 
 .field input,
 .field select,
+.field textarea,
 .add-club-row input {
   font: inherit;
   font-size: 16px; /* prevents iOS auto-zoom on focus */
   padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-line);
-  background: var(--color-surface);
+  border-radius: var(--shape-xs);
+  border: 1px solid var(--color-outline);
+  background: transparent;
   color: var(--color-ink);
+  transition: border-color 0.12s var(--ease-standard);
+}
+
+.field textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.field input:focus-visible,
+.field select:focus-visible,
+.field textarea:focus-visible,
+.add-club-row input:focus-visible {
+  outline: none;
+  border-color: var(--color-fairway);
+  border-width: 2px;
+  padding: 11px 13px; /* compensates the extra 1px border so the field doesn't visibly grow on focus */
 }
 
 .field-group-label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--color-ink-muted);
+}
+
+.price-range-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 /* --- Par entry: a vertical list of stepper rows, one big touch target
@@ -695,14 +1060,16 @@ h2 {
   padding-right: 2px;
 }
 
-.club-row {
+/* Higher specificity than the bare .list-row rule below (which this also
+   carries, for the same row/hover/focus treatment) — a deliberate
+   tighter-padding override, not a race against source order. */
+.list-row.club-row {
   padding: 10px 14px;
 }
 
 .club-card {
   background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--shape-md);
   overflow: hidden;
   max-height: 400px;
   opacity: 1;
@@ -720,7 +1087,6 @@ h2 {
 
 .club-card .club-row {
   background: transparent;
-  box-shadow: none;
   border-radius: 0;
 }
 
@@ -737,6 +1103,7 @@ h2 {
   cursor: pointer;
   font: inherit;
   color: inherit;
+  border-radius: var(--shape-xs);
 }
 
 .club-detail-fields {
@@ -754,9 +1121,9 @@ h2 {
   font: inherit;
   font-size: 15px;
   padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-line);
-  background: var(--color-bg);
+  border-radius: var(--shape-xs);
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface-low);
   color: var(--color-ink);
 }
 
@@ -767,13 +1134,13 @@ h2 {
 .club-row-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   flex-shrink: 0;
 }
 
 .club-row-actions .icon-btn {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   font-size: 13px;
 }
 
@@ -797,9 +1164,8 @@ h2 {
   align-items: center;
   justify-content: space-between;
   background: var(--color-surface);
-  border-radius: var(--radius-sm);
+  border-radius: var(--shape-sm);
   padding: 10px 12px;
-  box-shadow: var(--shadow-card);
 }
 
 .par-row-hole {
@@ -839,8 +1205,7 @@ h2 {
   justify-content: space-between;
   padding: 14px 16px;
   background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--shape-md);
   transition: transform 0.12s var(--ease-standard);
 }
 
@@ -913,18 +1278,21 @@ h2 {
 .delete-course-btn,
 .delete-round-btn {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   color: var(--color-ink-muted);
 }
 
 .delete-course-btn:hover,
 .delete-round-btn:hover {
-  color: var(--color-bogey);
+  color: var(--color-error);
 }
 
-.text-btn-danger {
-  color: var(--color-bogey);
+/* Compound selector — deliberately higher specificity than the plain
+   .text-btn rule below (which this always appears alongside), so the
+   error color isn't at the mercy of which rule happens to come later. */
+.text-btn.text-btn-danger {
+  color: var(--color-error);
 }
 
 .abandon-round-btn {
@@ -959,8 +1327,7 @@ h2 {
 
 .hole-card {
   background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--shape-lg);
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -1027,23 +1394,23 @@ h2 {
 
 .score-birdie,
 .score-eagle {
-  border-radius: 999px;
-  border: 3px solid var(--color-fairway-bright);
+  border-radius: var(--shape-full);
+  border: 3px solid var(--color-fairway);
 }
 
 .score-eagle {
   border-width: 4px;
-  box-shadow: inset 0 0 0 3px var(--color-bg), inset 0 0 0 6px var(--color-fairway-bright);
+  box-shadow: inset 0 0 0 3px var(--color-bg), inset 0 0 0 6px var(--color-fairway);
 }
 
 .score-birdie .stroke-number,
 .score-eagle .stroke-number {
-  color: var(--color-fairway-bright);
+  color: var(--color-fairway);
 }
 
 .score-bogey,
 .score-double {
-  border-radius: var(--radius-sm);
+  border-radius: var(--shape-sm);
   border: 3px solid var(--color-bogey);
 }
 
@@ -1083,12 +1450,12 @@ h2 {
 .stepper-btn {
   width: 52px;
   height: 52px;
-  border-radius: 999px;
+  border-radius: var(--shape-full);
   border: none;
-  background: var(--color-bg);
+  background: var(--color-surface-high);
   font-size: 24px;
   font-weight: 700;
-  color: var(--color-fairway-bright);
+  color: var(--color-fairway);
   cursor: pointer;
   transition: transform 0.12s var(--ease-standard);
 }
@@ -1138,7 +1505,7 @@ h2 {
   font-family: var(--font-mono);
   font-size: 56px;
   font-weight: 600;
-  color: var(--color-fairway-bright);
+  color: var(--color-fairway);
   line-height: 1.1;
 }
 
@@ -1160,8 +1527,7 @@ h2 {
   gap: 12px;
   padding: 12px 16px;
   background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--shape-md);
   margin-bottom: 4px;
 }
 
@@ -1222,9 +1588,8 @@ h2 {
   align-items: center;
   gap: 4px;
   background: var(--color-surface);
-  border-radius: var(--radius-sm);
+  border-radius: var(--shape-sm);
   padding: 10px 0;
-  box-shadow: var(--shadow-card);
 }
 
 .grid-hole {
@@ -1245,9 +1610,9 @@ h2 {
 
 .grid-score.score-birdie,
 .grid-score.score-eagle {
-  border-radius: 999px;
-  border: 2px solid var(--color-fairway-bright);
-  color: var(--color-fairway-bright);
+  border-radius: var(--shape-full);
+  border: 2px solid var(--color-fairway);
+  color: var(--color-fairway);
 }
 
 .grid-score.score-bogey,
@@ -1272,8 +1637,7 @@ h2 {
   flex-direction: column;
   gap: 2px;
   background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--shape-md);
   padding: 16px;
 }
 
@@ -1281,7 +1645,7 @@ h2 {
   font-family: var(--font-mono);
   font-weight: 600;
   font-size: 24px;
-  color: var(--color-fairway-bright);
+  color: var(--color-fairway);
 }
 
 .stat-block-label {
@@ -1304,8 +1668,7 @@ h2 {
 
 .club-stat-card {
   background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--shape-md);
   padding: 14px 16px;
 }
 
@@ -1341,7 +1704,7 @@ h2 {
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: 20px;
-  color: var(--color-fairway-bright);
+  color: var(--color-fairway);
 }
 
 .club-stat-label {
@@ -1392,46 +1755,62 @@ h2 {
   padding-left: 2px;
 }
 
+/* M3 Segmented Button — one outlined stadium track; the active segment
+   is marked by .segment-thumb, a real element js/segmentedThumb.js
+   slides between positions (see the comment there) rather than a
+   background instantly toggled on whichever button is active, the same
+   way M3's own Tabs indicator animates between tabs. */
 .segmented {
+  position: relative;
   display: flex;
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  background: transparent;
+  border: 1px solid var(--color-outline);
+  border-radius: var(--shape-full);
   padding: 4px;
-  gap: 4px;
+  gap: 0;
+}
+
+.segment-thumb {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  bottom: 4px;
+  border-radius: var(--shape-full);
+  background: var(--color-secondary-container);
+  pointer-events: none;
+  transition: transform 0.28s var(--ease-standard), width 0.28s var(--ease-standard);
+  z-index: 0;
+  will-change: transform, width;
 }
 
 .segment-btn {
+  position: relative;
+  z-index: 1;
   flex: 1;
   border: none;
   background: transparent;
   padding: 9px 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--shape-full);
   font-size: 14px;
   font-weight: 600;
   color: var(--color-ink-muted);
   cursor: pointer;
-  transition: background-color 0.15s var(--ease-standard), color 0.15s var(--ease-standard);
+  transition: color 0.18s var(--ease-standard);
 }
 
 .segment-btn.is-active {
-  background: var(--color-fairway);
-  color: #fff;
-}
-
-[data-theme='dark'] .segment-btn.is-active {
-  color: #0d120f;
+  color: var(--color-on-secondary-container);
 }
 
 .settings-row {
   display: flex;
   align-items: center;
+  gap: 12px;
   justify-content: space-between;
   width: 100%;
   padding: 14px 16px;
   background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--shape-md);
   border: none;
   font-size: 15px;
   font-weight: 600;
@@ -1439,12 +1818,78 @@ h2 {
   text-align: left;
 }
 
-.settings-row-chevron {
+.settings-row-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
   color: var(--color-ink-muted);
 }
 
+.settings-row-chevron {
+  color: var(--color-ink-muted);
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
 .settings-row-danger {
-  color: var(--color-bogey);
+  color: var(--color-error);
+}
+
+.settings-row-toggle {
+  align-items: center;
+  cursor: pointer;
+}
+
+.settings-row-toggle > span:not(.settings-row-icon):not(.toggle-switch) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-row-subtext {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-ink-muted);
+}
+
+/* M3 Switch: an outlined track (unfilled state shows the outline +
+   small dot so "off" reads as a deliberate state, not a broken
+   control), filled with primary + a larger thumb once on. */
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: var(--shape-full);
+  background: var(--color-surface-highest);
+  border: 2px solid var(--color-outline);
+  transition: background-color 0.18s var(--ease-standard), border-color 0.18s var(--ease-standard);
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-outline);
+  transform: translateY(-50%);
+  transition: left 0.15s var(--ease-standard), width 0.15s var(--ease-standard), height 0.15s var(--ease-standard), background-color 0.15s var(--ease-standard);
+}
+
+.toggle-switch.is-on {
+  background: var(--color-fairway);
+  border-color: var(--color-fairway);
+}
+
+.toggle-switch.is-on::after {
+  left: 22px;
+  width: 20px;
+  height: 20px;
+  background: var(--color-on-fairway);
 }
 
 /* ============================================================
@@ -1455,11 +1900,18 @@ h2 {
   font: inherit;
   font-size: 16px;
   padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-line);
-  background: var(--color-surface);
+  border-radius: var(--shape-xs);
+  border: 1px solid var(--color-outline);
+  background: transparent;
   color: var(--color-ink);
   width: 100%;
+}
+
+.search-input:focus-visible {
+  outline: none;
+  border-color: var(--color-fairway);
+  border-width: 2px;
+  padding: 11px 13px;
 }
 
 .field-hint {
@@ -1469,7 +1921,7 @@ h2 {
 }
 
 .field-hint-error {
-  color: var(--color-bogey);
+  color: var(--color-error);
 }
 
 .course-info-section {
@@ -1486,8 +1938,7 @@ h2 {
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--shape-md);
   overflow: hidden;
 }
 
@@ -1532,8 +1983,7 @@ h2 {
   padding: 12px 14px;
   background: var(--color-surface);
   border: none;
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--shape-sm);
   cursor: pointer;
   text-align: left;
   transition: transform 0.12s var(--ease-standard);
@@ -1562,7 +2012,7 @@ h2 {
   padding: 0 24px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-fairway-bright);
+  color: var(--color-fairway);
   line-height: 1.5;
 }
 
@@ -1593,127 +2043,8 @@ h2 {
   margin: 0;
 }
 
-/* Club picker — a bottom sheet over a scrim, shown right after a shot is
-   tracked. Deliberately lightweight and skippable (one tap either way:
-   pick a club, or Skip, or tap the backdrop) rather than a form you have
-   to submit, since it pops up after every tracked shot and needs to stay
-   out of the way of actually playing. */
-.club-picker-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  background: rgba(10, 12, 10, 0.45);
-  animation: club-picker-fade-in 0.15s ease-out;
-}
-
-@keyframes club-picker-fade-in {
-  from {
-    opacity: 0;
-  }
-}
-
-.club-picker-sheet {
-  width: 100%;
-  max-width: 480px;
-  max-height: 80vh;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.25);
-  padding: 10px 20px calc(20px + env(safe-area-inset-bottom, 0px));
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  animation: club-picker-slide-up 0.22s var(--ease-standard);
-}
-
-@keyframes club-picker-slide-up {
-  from {
-    transform: translateY(100%);
-  }
-}
-
-.club-picker-handle {
-  width: 36px;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--color-line);
-  align-self: center;
-}
-
-.club-picker-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.club-picker-title {
-  display: block;
-  font-weight: 700;
-  font-size: 17px;
-}
-
-.club-picker-subtitle {
-  display: block;
-  font-size: 13px;
-  color: var(--color-ink-muted);
-  margin-top: 3px;
-  line-height: 1.4;
-}
-
-.club-picker-help-btn {
-  flex-shrink: 0;
-  width: 30px;
-  height: 30px;
-  font-weight: 700;
-  font-size: 14px;
-}
-
-/* A real grid, not wrapped flex chips — every tap target is the same
-   predictable size and lines up cleanly, which matters more here than it
-   would in a short one-off list since this sheet pops up after every
-   single tracked shot. */
-.club-picker-chips {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  overflow-y: auto;
-  padding: 2px;
-}
-
-.club-chip {
-  border: 1px solid var(--color-line);
-  background: var(--color-bg);
-  color: var(--color-ink);
-  border-radius: var(--radius-sm);
-  padding: 14px 8px;
-  min-height: 48px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: center;
-}
-
-.club-chip:active {
-  transform: scale(0.95);
-  background: var(--color-fairway);
-  color: #fff;
-  border-color: transparent;
-}
-
-.club-picker-skip-btn {
-  align-self: center;
-  min-height: 44px;
-  padding: 0 20px;
-}
-
-
 /* Rangefinder reads as a small floating badge over the top of the map,
-   rather than its own row — same idea as the reference app's on-map
-   distance readout, in our type/color language. */
+   rather than its own row. */
 .rangefinder-overlay {
   position: absolute;
   top: 14px;
@@ -1723,7 +2054,7 @@ h2 {
   align-items: baseline;
   gap: 4px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--shape-full);
   padding: 8px 14px;
   background: color-mix(in srgb, var(--color-surface) 88%, transparent);
   backdrop-filter: blur(6px);
@@ -1736,7 +2067,7 @@ h2 {
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: 18px;
-  color: var(--color-fairway-bright);
+  color: var(--color-fairway);
 }
 
 .rangefinder-label {
@@ -1745,16 +2076,17 @@ h2 {
 }
 
 .rangefinder-prompt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   font-weight: 700;
   color: var(--color-ink);
 }
 
-/* Start hole / Track shot — deliberately a normal, full-width button in
-   document flow rather than floating over the map. It used to overlay the
-   map as a circular button, but that depended on stacking cleanly on top
-   of a Leaflet instance's own internal layout, and broke twice in
-   practice. This is less flashy but guaranteed to actually render. */
+/* Start hole / Track shot — a normal, full-width button in document
+   flow rather than floating over the map, so it's guaranteed to render
+   regardless of how the map layer underneath behaves. */
 .track-shot-btn {
   display: flex;
   align-items: center;
@@ -1763,13 +2095,12 @@ h2 {
   margin: 16px 24px 0;
   padding: 14px 18px;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--shape-full);
   background: var(--color-fairway);
-  color: #fff;
+  color: var(--color-on-fairway);
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: var(--shadow-card);
   transition: transform 0.12s var(--ease-standard), background-color 0.15s var(--ease-standard);
 }
 
@@ -1782,7 +2113,7 @@ h2 {
    of the flag-vs-crosshair icon change. */
 .track-shot-btn--start {
   background: var(--color-sand);
-  color: var(--color-ink);
+  color: #241d0f;
 }
 
 .text-btn {
@@ -1794,6 +2125,7 @@ h2 {
   text-decoration: underline;
   cursor: pointer;
   padding: 4px;
+  border-radius: var(--shape-xs);
 }
 
 .par-confirm-row {
@@ -1811,9 +2143,9 @@ h2 {
 .par-confirm-btn {
   width: 28px;
   height: 28px;
-  border-radius: 999px;
-  border: 1px solid var(--color-line);
-  background: var(--color-surface);
+  border-radius: var(--shape-full);
+  border: 1px solid var(--color-outline);
+  background: transparent;
   color: var(--color-ink);
   font-family: var(--font-mono);
   font-weight: 700;
@@ -1836,7 +2168,7 @@ h2 {
   font-weight: 700;
   font-size: 11px;
   color: #fff;
-  border-radius: 999px;
+  border-radius: 50%;
   border: 2px solid #fff;
 }
 
@@ -1846,17 +2178,16 @@ h2 {
 
 .map-marker--green span {
   background: var(--color-bogey);
-  font-size: 13px;
 }
 
 .map-marker--shot span {
-  background: var(--color-fairway-bright);
+  background: var(--color-secondary);
 }
 
 .map-marker--you span {
-  background: var(--color-sky);
+  background: var(--color-tertiary);
   border-width: 2px;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-sky) 30%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-tertiary) 30%, transparent);
 }
 
 /* ============================================================
@@ -1891,17 +2222,15 @@ h2 {
   gap: 2px;
   width: 38px;
   padding: 6px 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--shape-sm);
   background: var(--color-surface);
-  box-shadow: var(--shadow-card);
   border: none;
   cursor: pointer;
 }
 
 .strip-total {
   cursor: default;
-  background: var(--color-bg);
-  box-shadow: none;
+  background: transparent;
   border: 1px dashed var(--color-line);
 }
 
@@ -1911,7 +2240,7 @@ h2 {
 
 .strip-cell.is-current .strip-hole,
 .strip-cell.is-current .strip-score {
-  color: #fff;
+  color: var(--color-on-fairway);
 }
 
 .strip-hole {
@@ -1925,365 +2254,6 @@ h2 {
   font-weight: 600;
   font-size: 14px;
   color: var(--color-ink);
-}
-
-/* ============================================================
-   Material 3 — component treatment
-   Token remapping (radius/shadow/tonal surface tint/Roboto, above)
-   carries most of the shift. What's left: pill-shaped buttons, a real
-   connected SegmentedButtonRow (M3's segmented control is one outlined
-   stadium with internal dividers and a tonal fill on the selected
-   segment — not a row of separately-pilled buttons, which is what
-   this used to render), tonal (flat) secondary buttons, and a real
-   state-layer ripple on press (see js/ripple.js — delegated at the
-   document level, only active here).
-   ============================================================ */
-
-[data-design='m3'] .btn,
-[data-design='m3'] .track-shot-btn {
-  border-radius: 999px;
-}
-
-[data-design='m3'] .btn-secondary {
-  background: var(--color-surface-variant);
-  box-shadow: none;
-}
-
-/* Real M3 SegmentedButtonRow: one outlined stadium, zero gap, a hairline
-   divider between segments, and a tonal (not solid) fill + primary-colored
-   label on whichever segment is selected. */
-[data-design='m3'] .segmented {
-  background: transparent;
-  border: 1px solid var(--color-line);
-  border-radius: 999px;
-  padding: 0;
-  gap: 0;
-  box-shadow: none;
-  overflow: hidden;
-}
-
-[data-design='m3'] .segment-btn {
-  border-radius: 0;
-  border-right: 1px solid var(--color-line);
-  color: var(--color-ink);
-  padding: 10px 0;
-}
-
-[data-design='m3'] .segment-btn:last-child {
-  border-right: none;
-}
-
-[data-design='m3'] .segment-btn.is-active {
-  background: var(--color-surface-variant);
-  color: var(--color-fairway);
-}
-
-/* M3's characteristic tonal "surface container" cards — a step up in
-   tone from the page background rather than a flat white/neutral card,
-   which is what gives Google's UI its faint color-everywhere look. The
-   hero tile keeps its own photographic treatment. */
-[data-design='m3'] .tile:not(.tile--hero):not(.tile--hero-empty),
-[data-design='m3'] .hole-card,
-[data-design='m3'] .grid-cell,
-[data-design='m3'] .stat-block,
-[data-design='m3'] .par-row,
-[data-design='m3'] .score-row,
-[data-design='m3'] .list-row,
-[data-design='m3'] .strip-cell {
-  background: color-mix(in srgb, var(--color-fairway) 5%, var(--color-surface));
-}
-
-[data-design='m3'] .btn,
-[data-design='m3'] .icon-btn,
-[data-design='m3'] .segment-btn,
-[data-design='m3'] .settings-row,
-[data-design='m3'] .course-card,
-[data-design='m3'] .score-row,
-[data-design='m3'] .list-row,
-[data-design='m3'] .strip-cell,
-[data-design='m3'] .stepper-btn,
-[data-design='m3'] .par-confirm-btn,
-[data-design='m3'] .track-shot-btn,
-[data-design='m3'] .text-btn,
-[data-design='m3'] .tile,
-[data-design='m3'] .palette-swatch {
-  overflow: hidden;
-}
-
-.m3-ripple-host {
-  position: relative;
-}
-
-.m3-ripple {
-  position: absolute;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.16;
-  pointer-events: none;
-  transform: scale(0);
-  animation: m3-ripple-expand 480ms cubic-bezier(0.2, 0, 0, 1) forwards;
-}
-
-@keyframes m3-ripple-expand {
-  to {
-    transform: scale(1);
-    opacity: 0;
-  }
-}
-
-/* ============================================================
-   Liquid Glass — component treatment
-   Real Apple "glass" chrome is genuinely see-through (blurred content
-   visible behind it, not just a tinted card), floats above the page as
-   distinct capsules/panels rather than sitting flush with the edges, and
-   its controls (segmented pickers, switches) look like the real iOS ones.
-   The hero tile keeps its own photographic treatment — excluded from the
-   generic glass surface list — since it's meant to read as a photo card.
-   ============================================================ */
-
-[data-design='glass'] body {
-  background-image: var(--glass-body-wash);
-  background-attachment: fixed;
-}
-
-/* The header stops being an edge-to-edge bar and becomes a floating
-   capsule inset from the screen edges — the single biggest visual tell
-   that separates real iOS/macOS chrome from "a bar with blur() on it." */
-[data-design='glass'] .app-header {
-  top: 12px;
-  margin: 0 12px;
-  padding: 0 18px;
-  min-height: 50px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-capsule);
-  background: var(--color-surface);
-  backdrop-filter: blur(36px) saturate(190%);
-  -webkit-backdrop-filter: blur(36px) saturate(190%);
-  box-shadow: var(--shadow-floating), inset 0 1px 0 var(--glass-highlight);
-}
-
-[data-design='glass'] .tile:not(.tile--hero):not(.tile--hero-empty),
-[data-design='glass'] .btn-secondary,
-[data-design='glass'] .settings-row,
-[data-design='glass'] .course-card,
-[data-design='glass'] .par-row,
-[data-design='glass'] .score-row,
-[data-design='glass'] .list-row,
-[data-design='glass'] .grid-cell,
-[data-design='glass'] .stat-block,
-[data-design='glass'] .strip-cell,
-[data-design='glass'] .icon-btn,
-[data-design='glass'] .hole-card,
-[data-design='glass'] .par-confirm-btn,
-[data-design='glass'] .palette-swatch,
-[data-design='glass'] .field input,
-[data-design='glass'] .field select,
-[data-design='glass'] .search-input,
-[data-design='glass'] .add-club-row input,
-[data-design='glass'] .color-input-field input[type='color'] {
-  background: var(--color-surface);
-  backdrop-filter: blur(30px) saturate(190%);
-  -webkit-backdrop-filter: blur(30px) saturate(190%);
-  border: 1px solid var(--color-line);
-  box-shadow: var(--shadow-card), inset 0 1px 0 var(--glass-highlight);
-}
-
-[data-design='glass'] .btn-primary {
-  box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-}
-
-[data-design='glass'] .strip-total {
-  background: transparent;
-}
-
-/* Real iOS segmented control: a frosted capsule *track*, with the
-   selected segment rendered as a light, shadowed "thumb" floating inside
-   it — not a solid brand-colored fill like Standard/M3 use. The thumb is
-   a real, separate absolutely-positioned element (.segment-thumb,
-   inserted by js/segmentedThumb.js) rather than a background toggled on
-   whichever button is active, specifically so it can slide between
-   positions on a change instead of instantly jumping — a CSS transition
-   can animate one element moving, it can't animate "a style moving from
-   element A to element B." */
-[data-design='glass'] .segmented {
-  position: relative;
-  background: var(--glass-track);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: none;
-  border-radius: var(--radius-capsule);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-[data-design='glass'] .segment-thumb {
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  border-radius: var(--radius-capsule);
-  background: var(--glass-thumb);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.1);
-  pointer-events: none;
-  transition: transform 0.32s var(--ease-standard), width 0.32s var(--ease-standard);
-  will-change: transform, width;
-}
-
-[data-design='glass'] .segment-btn {
-  position: relative;
-  z-index: 1;
-  border-radius: var(--radius-capsule);
-  color: var(--color-ink-muted);
-  transition: color 0.22s var(--ease-standard);
-}
-
-[data-design='glass'] .segment-btn.is-active {
-  color: var(--color-ink);
-}
-
-/* The toggle switch already mirrors iOS's own UISwitch shape — just give
-   its thumb a touch more glassy dimension to match everything else. */
-[data-design='glass'] .toggle-switch::after {
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-}
-
-/* ============================================================
-   Design language + palette controls (Settings screen)
-   ============================================================ */
-
-.settings-row-toggle {
-  align-items: center;
-  cursor: pointer;
-}
-
-.settings-row-toggle > span:first-child {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.settings-row-subtext {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-ink-muted);
-}
-
-.toggle-switch {
-  position: relative;
-  width: 44px;
-  height: 26px;
-  flex-shrink: 0;
-  border-radius: 999px;
-  background: var(--color-line);
-  transition: background-color 0.18s var(--ease-standard);
-}
-
-.toggle-switch::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--color-surface);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-  transition: transform 0.18s var(--ease-standard);
-}
-
-.toggle-switch.is-on {
-  background: var(--color-fairway);
-}
-
-.toggle-switch.is-on::after {
-  transform: translateX(18px);
-  background: #fff;
-}
-
-.palette-swatch-row {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding: 2px 2px 6px;
-  scrollbar-width: none;
-}
-
-.palette-swatch-row::-webkit-scrollbar {
-  display: none;
-}
-
-.palette-swatch {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  flex: 0 0 auto;
-  padding: 10px 14px;
-  border: 2px solid transparent;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
-  cursor: pointer;
-  transition: transform 0.12s var(--ease-standard), border-color 0.12s var(--ease-standard);
-}
-
-.palette-swatch:active {
-  transform: scale(0.96);
-}
-
-.palette-swatch.is-active {
-  border-color: var(--color-fairway-bright);
-}
-
-.palette-swatch-dots {
-  display: flex;
-  gap: 3px;
-}
-
-.palette-swatch-dots span {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.palette-swatch-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-ink-muted);
-}
-
-.palette-swatch.is-active .palette-swatch-label {
-  color: var(--color-ink);
-}
-
-.custom-palette-panel {
-  display: flex;
-  gap: 12px;
-}
-
-.custom-palette-panel.is-hidden {
-  display: none;
-}
-
-.color-input-field {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-ink-muted);
-}
-
-.color-input-field input[type='color'] {
-  width: 100%;
-  height: 40px;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
-  cursor: pointer;
 }
 
 /* ============================================================
@@ -2309,5 +2279,169 @@ h2 {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--color-fairway-bright);
+  color: var(--color-fairway);
+}
+
+/* ============================================================
+   Club picker sheet (play screen) & club management (bags screen)
+   ============================================================ */
+
+.club-picker-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.club-picker-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.club-picker-subtitle {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-ink-muted);
+}
+
+.club-picker-help-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  background: var(--color-surface);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.club-picker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* M3 Assist Chip: outlined pill, fills solid on selection. */
+.club-chip {
+  padding: 9px 16px;
+  border-radius: var(--shape-sm);
+  border: 1px solid var(--color-outline);
+  background: transparent;
+  color: var(--color-ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.club-picker-skip-btn {
+  align-self: center;
+  margin-top: 2px;
+}
+
+.club-card.is-expanded {
+  background: var(--color-surface-high);
+  box-shadow: var(--shadow-card);
+}
+
+.delete-bag-btn {
+  color: var(--color-ink-muted);
+}
+
+.delete-bag-btn:hover {
+  color: var(--color-error);
+}
+
+/* ============================================================
+   Responsive: medium (>=600px, tablet) & expanded (>=840px, desktop)
+
+   Everything above this point IS the compact/phone layout — untouched.
+   These two breakpoints only add the navigation rail and widen/regroup
+   content for the extra space; there's no separate "mobile stylesheet,"
+   this file just adds onto the same rules as the viewport grows.
+   ============================================================ */
+
+@media (min-width: 600px) {
+  .nav-rail {
+    display: flex;
+  }
+
+  .app-header {
+    padding: 0 32px;
+  }
+
+  .view-outlet {
+    padding: 28px 32px 48px;
+  }
+
+  .panel {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  /* Forms (and the read-only OpenGolfAPI info above the course-edit
+     form) stay a comfortable reading width even inside a wider panel —
+     more than ~480px of label-and-input row starts looking sparse, not
+     spacious. Lists and grids below intentionally use the fuller width
+     instead. */
+  .form,
+  .course-info-section {
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .tile-stack {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .stat-block-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 840px) {
+  .app-header {
+    height: 64px;
+    min-height: 64px;
+  }
+
+  /* Home screen becomes a real dashboard: the hero spans the full
+     width, the three secondary tiles sit in a row beneath it instead
+     of stacking one under another. */
+  .tile-stack {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .tile--hero {
+    grid-column: 1 / -1;
+    min-height: 260px;
+  }
+
+  .course-card-list,
+  .plain-list,
+  .scorecard-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    align-content: start;
+  }
+
+  /* The club editor's list is excluded: tapping a club expands it to
+     show detail fields right there in place, and a 2-up grid would put
+     mismatched-height neighbors awkwardly side by side as cards
+     open/close independently. */
+  #club-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stat-block-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .scorecard-grid {
+    grid-template-columns: repeat(9, 1fr);
+  }
 }

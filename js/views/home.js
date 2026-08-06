@@ -7,9 +7,17 @@ import { SATELLITE_TILE_URL, SATELLITE_ATTRIBUTION } from '../mapConfig.js';
 import { ensureLocalCourse } from '../courseResolve.js';
 import { getCourseWeather, weatherIconSvg, weatherConditionLabel, degToCompass } from '../api/weather.js';
 import { statesContainingPoint } from '../usStates.js';
+import { youthOnCourseIcon, externalLinkIcon, chevronIcon } from '../icons.js';
+
+// Set once per renderHome() and read by the hero tile's price row — home.js's
+// other render functions are plain top-level functions keyed off the DOM
+// (see finalizeTile below), not closures, so this follows the same pattern
+// rather than threading one more parameter through every call site.
+let yocEnabled = false;
 
 export async function renderHome(outlet) {
-  const [rounds, courses, bags] = await Promise.all([storage.getRounds(), storage.getCourses(), storage.getBags()]);
+  const [rounds, courses, bags, yoc] = await Promise.all([storage.getRounds(), storage.getCourses(), storage.getBags(), storage.getYouthOnCourseEnabled()]);
+  yocEnabled = yoc;
   const heroState = computeHeroState(rounds, courses);
 
   outlet.innerHTML = `
@@ -20,6 +28,19 @@ export async function renderHome(outlet) {
       ${renderSettingsTile()}
     </div>
   `;
+
+  // Delegated on the outlet (not the tile itself) so it survives
+  // round-tile-slot being swapped wholesale once resolveNearestAndUpdate()
+  // settles — see finalizeTile() below. Reads the course fresh from
+  // storage rather than the courses[] captured above, since the nearest
+  // course can be one ensureLocalCourse() only just created this session.
+  outlet.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.hero-price-details-btn');
+    if (!btn) return;
+    e.stopPropagation();
+    const course = await storage.getCourse(btn.dataset.courseId);
+    if (course) openPriceDetailsSheet(course);
+  });
 
   mountHeroMap(heroState.course?.location || null);
   if (heroState.mode === 'continue') loadHeroWeather(heroState.course);
@@ -45,24 +66,120 @@ function computeHeroState(rounds, courses) {
 }
 
 // Hero tile markup is hand-built (not using the shared tile() helper)
-// because it needs a directions button as a sibling of the main tap
-// target, not nested inside it — nesting an <a>/<button> inside another
-// <a> is invalid HTML and behaves inconsistently across browsers. The
-// primary link is an absolutely-positioned overlay filling the whole
-// tile; the directions button sits on top of it in its own corner, so
-// tapping it doesn't also trigger the tile's own navigation.
-function heroTileMarkup({ href, extraClass, ariaLabel, eyebrow, courseLabel, cta, location }) {
+// because it needs a directions button (and now a booking link/price
+// details button) as siblings of the main tap target, not nested inside
+// it — nesting an <a>/<button> inside another <a> is invalid HTML and
+// behaves inconsistently across browsers. The primary link is an
+// absolutely-positioned overlay filling the whole tile; the secondary
+// buttons sit on top of it in their own spots, so tapping one of them
+// doesn't also trigger the tile's own navigation.
+function heroTileMarkup({ href, extraClass, ariaLabel, eyebrow, courseLabel, cta, course }) {
   return `
     <div class="tile tile--hero ${extraClass || ''}">
       <div id="hero-tile-map" class="tile-map"></div>
       <a class="tile-primary-link" href="${href}" aria-label="${escapeHtml(ariaLabel)}"></a>
-      ${directionsButtonHtml(location)}
+      ${directionsButtonHtml(course?.location || null)}
       <span id="hero-weather-badge"></span>
       <span class="hero-eyebrow">${escapeHtml(eyebrow)}</span>
       <span class="hero-course">${escapeHtml(courseLabel)}</span>
+      ${heroPriceRowHtml(course)}
       <span class="hero-cta">${escapeHtml(cta)}</span>
     </div>
   `;
+}
+
+// $5-or-less Youth on Course pricing takes over the headline the moment a
+// course is flagged as participating and the person has the feature on
+// (see Settings) — that's the number that's actually true for them, and
+// their normal green fee (if entered) moves into "Details" instead of
+// competing with it for attention on a card this small.
+function heroPriceRowHtml(course) {
+  if (!course) return '';
+  const showYoc = course.youthOnCourse && yocEnabled;
+  const regularPrice = formatPriceRange(course);
+  const headline = showYoc ? '$5 or less' : regularPrice;
+  const hasDetails = Boolean(course.priceDetails) || (showYoc && regularPrice);
+  if (!headline && !course.bookingUrl) return '';
+
+  return `
+    <div class="hero-price-row">
+      ${
+        headline
+          ? `<span class="hero-price ${showYoc ? 'hero-price--yoc' : ''}">${showYoc ? youthOnCourseIcon(13) : ''}${escapeHtml(headline)}</span>`
+          : ''
+      }
+      ${hasDetails ? `<button type="button" class="hero-price-details-btn" data-course-id="${course.id}" onclick="event.stopPropagation()">Details</button>` : ''}
+      ${
+        course.bookingUrl
+          ? `<a class="hero-book-btn" href="${course.bookingUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Book ${externalLinkIcon(12)}</a>`
+          : ''
+      }
+    </div>
+  `;
+}
+
+// A flat number ("$45") when there's just one, a range ("$45–65") when
+// both ends were entered — never a dash-to-nowhere if only one was.
+export function formatPriceRange(course) {
+  if (!course) return null;
+  const { priceMin, priceMax } = course;
+  if (priceMin == null && priceMax == null) return null;
+  if (priceMin != null && priceMax != null && priceMax !== priceMin) return `$${priceMin}–${priceMax}`;
+  return `$${priceMin ?? priceMax}`;
+}
+
+// A lightweight bottom sheet — same visual recipe as the club picker in
+// views/play.js (see .sheet-scrim/.sheet-panel in styles.css), reused
+// here rather than duplicated since both are "a few lines of info over a
+// scrim" with nothing else in common.
+function openPriceDetailsSheet(course) {
+  closePriceDetailsSheet();
+  const showYoc = course.youthOnCourse && yocEnabled;
+  const regularPrice = formatPriceRange(course);
+
+  const scrim = document.createElement('div');
+  scrim.className = 'sheet-scrim';
+  scrim.id = 'price-details-scrim';
+  scrim.innerHTML = `
+    <div class="sheet-panel">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <span class="sheet-title">${escapeHtml(course.name)}</span>
+        <button type="button" class="icon-btn" id="price-details-close-btn" aria-label="Close">${closeIcon()}</button>
+      </div>
+      ${
+        showYoc
+          ? `<div class="price-details-row"><span class="price-details-label">${youthOnCourseIcon(15)} Youth on Course</span><span class="price-details-value">$5 or less</span></div>`
+          : ''
+      }
+      ${
+        regularPrice
+          ? `<div class="price-details-row"><span class="price-details-label">${showYoc ? 'Regular price' : 'Price'}</span><span class="price-details-value">${escapeHtml(regularPrice)}</span></div>`
+          : ''
+      }
+      ${course.priceDetails ? `<p class="price-details-text">${escapeHtml(course.priceDetails)}</p>` : ''}
+    </div>
+  `;
+  document.body.appendChild(scrim);
+
+  scrim.addEventListener('click', (e) => {
+    if (e.target === scrim) closePriceDetailsSheet();
+  });
+  document.getElementById('price-details-close-btn').addEventListener('click', closePriceDetailsSheet);
+  document.addEventListener('keydown', onPriceSheetKeydown);
+}
+
+function onPriceSheetKeydown(e) {
+  if (e.key === 'Escape') closePriceDetailsSheet();
+}
+
+function closePriceDetailsSheet() {
+  document.getElementById('price-details-scrim')?.remove();
+  document.removeEventListener('keydown', onPriceSheetKeydown);
+}
+
+function closeIcon() {
+  return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>`;
 }
 
 function weatherBadgeHtml(weather) {
@@ -110,7 +227,7 @@ function renderRoundTile(state) {
       eyebrow: 'Round in progress',
       courseLabel: state.course ? state.course.name : 'Unknown course',
       cta: 'Continue round →',
-      location: state.course?.location || null,
+      course: state.course,
     });
   }
 
@@ -132,7 +249,7 @@ function renderRoundTile(state) {
     eyebrow: state.course ? 'Start round' : state.resolved ? emptyEyebrow : 'Locating you…',
     courseLabel: state.course ? state.course.name : state.resolved ? emptyLabel : 'Finding nearest course…',
     cta: 'New round →',
-    location: state.course?.location || null,
+    course: state.course,
   });
 }
 
@@ -222,7 +339,7 @@ function finalizeTile(fallbackCourse, nearestCourse, distanceMi, reason) {
     eyebrow,
     courseLabel: nearestCourse.name,
     cta: 'New round →',
-    location: nearestCourse.location,
+    course: nearestCourse,
   });
   mountHeroMap(nearestCourse.location);
   loadHeroWeather(nearestCourse);
@@ -298,7 +415,7 @@ function renderBagsTile(bags) {
     innerHtml: `
       <div class="bags-tile-header">
         <span class="bags-tile-label">Clubs</span>
-        <span class="bags-tile-chevron">›</span>
+        <span class="bags-tile-chevron">${chevronIcon(16)}</span>
       </div>
       <div class="bags-tile-list">
         ${bags
@@ -323,7 +440,7 @@ function renderSettingsTile() {
     href: '#/settings',
     extraClass: 'tile--settings',
     ariaLabel: 'Settings',
-    innerHtml: `<span class="settings-tile-label">Settings</span><span class="settings-tile-chevron">›</span>`,
+    innerHtml: `<span class="settings-tile-label">Settings</span><span class="settings-tile-chevron">${chevronIcon(16)}</span>`,
   });
 }
 

@@ -1,8 +1,9 @@
 import { storage } from '../storage.js';
 import { makeCourse } from '../models.js';
-import { escapeHtml } from './home.js';
+import { escapeHtml, formatPriceRange } from './home.js';
 import { getCurrentPosition } from '../geo.js';
 import { getCourseTees, getCourseDifficulty, getCourseDaylight } from '../api/opengolfapi.js';
+import { youthOnCourseIcon } from '../icons.js';
 
 const MIN_PAR = 3;
 const MAX_PAR = 6;
@@ -40,7 +41,7 @@ function renderList(courses) {
       <li class="list-row">
         <a class="list-row-link" href="#/courses/${c.id}/edit">
           <span class="list-row-name">${escapeHtml(c.name)}</span>
-          <span class="list-row-meta">${c.numHoles} holes · par ${c.holes.reduce((s, h) => s + h.par, 0)}</span>
+          <span class="list-row-meta">${c.numHoles} holes · par ${c.holes.reduce((s, h) => s + h.par, 0)}${formatPriceMeta(c)}</span>
         </a>
         <button type="button" class="icon-btn delete-course-btn" data-id="${c.id}" data-name="${escapeHtml(c.name)}" aria-label="Delete ${escapeHtml(c.name)}">${trashIcon()}</button>
       </li>
@@ -52,6 +53,12 @@ function renderList(courses) {
 
 function trashIcon() {
   return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16Z"/></svg>`;
+}
+
+function formatPriceMeta(course) {
+  const price = formatPriceRange(course);
+  if (course.youthOnCourse) return ` · ${price ? `${price}, ` : ''}Youth on Course`;
+  return price ? ` · ${price}` : '';
 }
 
 export async function renderNewCourse(outlet) {
@@ -185,6 +192,36 @@ function renderCourseForm(outlet, { existing }) {
         </label>
         <div class="field-group-label">Par per hole</div>
         <div id="par-list" class="par-list"></div>
+
+        <div class="field-group-label">Pricing &amp; booking</div>
+        <p class="field-hint">Optional — shown on the home screen so you know the damage before you tee off.</p>
+        <div class="price-range-row">
+          <label class="field">
+            <span>Price</span>
+            <input type="number" name="priceMin" min="0" step="1" inputmode="numeric" placeholder="45" autocomplete="off" value="${existing?.priceMin ?? ''}" />
+          </label>
+          <label class="field">
+            <span>To (optional)</span>
+            <input type="number" name="priceMax" min="0" step="1" inputmode="numeric" placeholder="65" autocomplete="off" value="${existing?.priceMax ?? ''}" />
+          </label>
+        </div>
+        <label class="field">
+          <span>Pricing details (optional)</span>
+          <textarea name="priceDetails" rows="2" placeholder="e.g. Twilight $30 after 3pm · $10 off for members">${existing ? escapeHtml(existing.priceDetails || '') : ''}</textarea>
+        </label>
+        <label class="field">
+          <span>Booking link (optional)</span>
+          <input type="url" name="bookingUrl" placeholder="https://…" autocomplete="off" value="${existing?.bookingUrl ? escapeHtml(existing.bookingUrl) : ''}" />
+        </label>
+        <label class="settings-row settings-row-toggle" id="yoc-row">
+          <span class="settings-row-icon">${youthOnCourseIcon(20)}</span>
+          <span>
+            Participates in Youth on Course
+            <span class="settings-row-subtext">Eligible members play here for $5 or less</span>
+          </span>
+          <span class="toggle-switch ${existing?.youthOnCourse ? 'is-on' : ''}" id="yoc-toggle" role="switch" aria-checked="${existing?.youthOnCourse ? 'true' : 'false'}" tabindex="0"></span>
+        </label>
+
         <button type="submit" class="btn btn-primary btn-block">Save course</button>
         ${isEdit ? `<p class="field-hint">Reducing hole count drops the removed holes' saved mapping and shot data — scores from finished rounds already played there are unaffected.</p>` : ''}
       </form>
@@ -194,6 +231,7 @@ function renderCourseForm(outlet, { existing }) {
   const form = document.getElementById('course-form');
   const parList = document.getElementById('par-list');
   const numHolesSelect = form.querySelector('select[name="numHoles"]');
+  let youthOnCourse = existing?.youthOnCourse || false;
 
   function parFor(num) {
     return existing?.holes.find((h) => h.number === num)?.par ?? DEFAULT_PAR;
@@ -235,6 +273,23 @@ function renderCourseForm(outlet, { existing }) {
   numHolesSelect.addEventListener('change', renderParRows);
   renderParRows();
 
+  const yocToggleEl = document.getElementById('yoc-toggle');
+  const handleYocToggle = () => {
+    youthOnCourse = !youthOnCourse;
+    yocToggleEl.classList.toggle('is-on', youthOnCourse);
+    yocToggleEl.setAttribute('aria-checked', String(youthOnCourse));
+  };
+  document.getElementById('yoc-row').addEventListener('click', (e) => {
+    e.preventDefault(); // a <label> with no real control inside it — own the click fully
+    handleYocToggle();
+  });
+  yocToggleEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleYocToggle();
+    }
+  });
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const data = new FormData(form);
@@ -245,6 +300,12 @@ function renderCourseForm(outlet, { existing }) {
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Saving…';
+
+    const priceMin = data.get('priceMin') ? Number(data.get('priceMin')) : null;
+    const priceMax = data.get('priceMax') ? Number(data.get('priceMax')) : null;
+    const priceDetails = String(data.get('priceDetails') || '').trim();
+    const bookingUrlRaw = String(data.get('bookingUrl') || '').trim();
+    const bookingUrl = bookingUrlRaw ? (/^https?:\/\//i.test(bookingUrlRaw) ? bookingUrlRaw : `https://${bookingUrlRaw}`) : null;
 
     // Editing: keep each surviving hole's tee/green mapping and identity
     // (id, source, externalId, location) — only name/count/par are
@@ -263,6 +324,11 @@ function renderCourseForm(outlet, { existing }) {
       existing.name = name;
       existing.numHoles = numHoles;
       existing.holes = holes;
+      existing.priceMin = priceMin;
+      existing.priceMax = priceMax;
+      existing.priceDetails = priceDetails;
+      existing.bookingUrl = bookingUrl;
+      existing.youthOnCourse = youthOnCourse;
       await storage.saveCourse(existing);
       location.hash = '#/courses';
       return;
@@ -280,7 +346,7 @@ function renderCourseForm(outlet, { existing }) {
       // no location — fine, continue without it
     }
 
-    const course = makeCourse({ name, numHoles, holes, location: courseLocation });
+    const course = makeCourse({ name, numHoles, holes, location: courseLocation, priceMin, priceMax, priceDetails, bookingUrl, youthOnCourse });
     await storage.saveCourse(course);
     location.hash = '#/courses';
   });

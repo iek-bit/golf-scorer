@@ -106,8 +106,8 @@ function renderBagForm(outlet, { bag, isNew, bagCount }) {
             ${c.brand ? `<span class="list-row-meta">${escapeHtml(c.brand)}</span>` : ''}
           </button>
           <div class="club-row-actions">
-            <button type="button" class="icon-btn club-move-btn" data-index="${i}" data-dir="-1" aria-label="Move ${escapeHtml(c.name)} up" ${i === 0 ? 'disabled' : ''}>↑</button>
-            <button type="button" class="icon-btn club-move-btn" data-index="${i}" data-dir="1" aria-label="Move ${escapeHtml(c.name)} down" ${i === bag.clubs.length - 1 ? 'disabled' : ''}>↓</button>
+            <button type="button" class="icon-btn club-move-btn" data-index="${i}" data-dir="-1" aria-label="Move ${escapeHtml(c.name)} up" ${i === 0 ? 'disabled' : ''}>${upIcon()}</button>
+            <button type="button" class="icon-btn club-move-btn" data-index="${i}" data-dir="1" aria-label="Move ${escapeHtml(c.name)} down" ${i === bag.clubs.length - 1 ? 'disabled' : ''}>${downIcon()}</button>
             <button type="button" class="icon-btn club-remove-btn" data-index="${i}" aria-label="Remove ${escapeHtml(c.name)}">${trashIcon()}</button>
           </div>
         </div>
@@ -262,4 +262,12 @@ function renderBagForm(outlet, { bag, isNew, bagCount }) {
 
 function trashIcon() {
   return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16Z"/></svg>`;
+}
+
+function upIcon() {
+  return `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 15 12 8 19 15"/></svg>`;
+}
+
+function downIcon() {
+  return `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 12 16 19 9"/></svg>`;
 }

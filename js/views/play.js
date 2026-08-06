@@ -2,6 +2,7 @@ import { storage } from '../storage.js';
 import { escapeHtml } from './home.js';
 import { getCurrentPosition, haversineMeters, metersToYards } from '../geo.js';
 import { SATELLITE_TILE_URL, SATELLITE_ATTRIBUTION } from '../mapConfig.js';
+import { pinIcon } from '../icons.js';
 
 const POSITION_ONLY_ZOOM = 17; // moderate — "see the full hole," not zoomed all the way in
 const PAR_OPTIONS = [3, 4, 5, 6];
@@ -431,7 +432,7 @@ function crosshairIcon() {
 }
 
 function renderRangefinderContent(holeDef, position) {
-  if (!position) return `<span class="rangefinder-prompt">📍 Get distance</span>`;
+  if (!position) return `<span class="rangefinder-prompt">${pinIcon(13)} Get distance</span>`;
   const yards = Math.round(metersToYards(haversineMeters(position, holeDef.green)));
   return `<span class="rangefinder-value">${yards}</span><span class="rangefinder-label">yds</span>`;
 }
@@ -470,7 +471,7 @@ function renderShotMap(holeScore, holeDef, position) {
     L.tileLayer(SATELLITE_TILE_URL, { maxZoom: 19, attribution: SATELLITE_ATTRIBUTION }).addTo(map);
 
     if (holeDef.tee) L.marker([holeDef.tee.lat, holeDef.tee.lng], { icon: markerIcon('tee', 'T') }).addTo(map).bindTooltip('Tee');
-    if (holeDef.green) L.marker([holeDef.green.lat, holeDef.green.lng], { icon: markerIcon('green', '⛳') }).addTo(map).bindTooltip('Green');
+    if (holeDef.green) L.marker([holeDef.green.lat, holeDef.green.lng], { icon: markerIcon('green', 'G') }).addTo(map).bindTooltip('Green');
     holeScore.shots.forEach((s, i) => {
       L.marker([s.lat, s.lng], { icon: markerIcon('shot', String(i + 1)) }).addTo(map).bindTooltip(`Shot ${i + 1}`);
     });

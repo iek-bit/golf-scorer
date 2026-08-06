@@ -16,8 +16,6 @@ import { toParText } from './views/home.js';
 import { scoreClass } from './views/play.js';
 import { weatherConditionLabel } from './api/weather.js';
 
-const CONDITION_GLYPH = { sun: '☀', cloud: '☁', rain: '🌧', snow: '❄' };
-
 function cssVar(name, fallback) {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return value || fallback;
@@ -85,9 +83,8 @@ function buildScorecardCanvas(round, course, totals) {
   if (round.weather) {
     y += 44;
     const w = round.weather;
-    const glyph = CONDITION_GLYPH[w.condition] || '';
     const parts = [
-      `${glyph} ${weatherConditionLabel(w.condition)}`,
+      weatherConditionLabel(w.condition),
       w.tempF != null ? `${Math.round(w.tempF)}°F` : null,
       w.windSpeedMph != null ? `Wind ${Math.round(w.windSpeedMph)} mph` : null,
     ].filter(Boolean);

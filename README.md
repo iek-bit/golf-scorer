@@ -17,15 +17,16 @@ index.html          App shell: an empty header slot + the view outlet + Leaflet 
 manifest.webmanifest PWA manifest — name, icons, standalone display
 sw.js                Service worker: precached app shell + stale-while-revalidate for fonts/tiles/API
 icons/               Favicon + manifest icons, generated from one square source image (see PWA section)
-css/styles.css       All styling — design tokens (light/dark × Standard/Material 3/Liquid Glass) at the top
-js/app.js            Registers routes, boots theme/design/ripple, registers the service worker
+css/styles.css       All styling — Material 3 design tokens (generated from the brand seed color) at the top, responsive breakpoints at the bottom
+js/app.js            Registers routes, boots theme/ripple, registers the service worker
 js/router.js         Tiny hash-based router (#/, #/courses, #/round/:id/play, ...) — now parses ?query too
 js/header.js         Renders the header per-route: wordmark+toggle on home, back+title elsewhere
+js/icons.js          Small SVG icon helpers shared across 2+ views (single-use icons stay local to their view)
 js/models.js         Data shapes (Course, Round, Player) + id/factory helpers
 js/storage.js        The ONLY file that touches localStorage — see below
 js/theme.js          Light/dark handling (system default + manual override, or explicit choice)
-js/design.js          Design-language (Standard/Material 3/Liquid Glass) + color palette handling — see below
-js/ripple.js          Material 3's press ripple, delegated at the document level (no-op outside m3)
+js/ripple.js          Material 3's press ripple, delegated at the document level
+js/segmentedThumb.js  Sliding tonal-pill indicator for segmented controls (theme, weather filter)
 js/courseResolve.js  Shared "turn an OpenGolfAPI result into a saved local course" logic
 js/usStates.js       Bounding-box state lookup used by "nearest course" — see Course search below
 js/installPrompt.js  Captures the PWA install prompt + iOS detection — see Installing below
@@ -34,7 +35,8 @@ js/geo.js            Geolocation wrapper + distance math (rangefinder, nearest-c
 js/mapConfig.js      Shared map tile URLs (satellite + street) used by home.js and play.js
 js/api/opengolfapi.js  Read-only wrapper around OpenGolfAPI's keyless course search — see below
 js/api/weather.js    Wind/condition lookup for a round — see Weather below
-js/components/tile.js  Shared wrapper for the home screen's tappable tiles
+js/components/tile.js    Shared wrapper for the home screen's tappable tiles
+js/components/navRail.js  Persistent M3 navigation rail at tablet/desktop widths — see Responsive layout below
 js/views/*.js        One file per screen (home, courses, new round, play, summary, stats, settings)
 ```
 
@@ -56,18 +58,22 @@ There's no bottom tab bar. The home screen is three stacked tiles:
    same non-interactive map used elsewhere — see "Course search" below.
    Tapping it links straight to `#/round/new?course=<id>`, which
    preselects that course and jumps to the holes step instead of a blank
-   search — see "Course search" below for why that used to be wrong.
+   search — see "Course search" below for why that used to be wrong. If
+   the course has a price and/or booking link set, those show here too —
+   see "Pricing, booking & Youth on Course" below.
 2. **Stats** — a few mini stats (rounds played, avg to par, best round,
    avg putts). Tapping it opens the full Stats screen, which also lists
    every completed round (tap one to see its scorecard again).
-3. **Settings** — theme (System/Light/Dark), design language (Standard /
-   Material 3 / Liquid Glass, with a "match my device" auto option) and
-   color palette, a link to manage courses, and a reset-all-data option.
+3. **Settings** — theme (System/Light/Dark), a Youth on Course toggle, a
+   link to manage courses, a link to manage bags, and export/import/
+   reset-all-data options.
 
 Every other screen gets a back button + title in the header, targeting a
 fixed parent screen (declared per-route in `app.js`) rather than browser
 history — simpler to reason about than an actual history stack, given how
-shallow this app's navigation is.
+shallow this app's navigation is. At tablet/desktop widths a persistent
+navigation rail also sits alongside all of this — see "Responsive layout"
+below.
 
 ## Extending the UI in later stages
 
@@ -253,7 +259,7 @@ round or by tapping any past round in Stats) has an "Export scorecard"
 button. It renders a shareable PNG on a `<canvas>` — course, total,
 to-par, weather if the round has one, and a hole-by-hole grid colored
 the same way the in-app scorecard is — using colors read live from the
-current theme/design language/custom palette (`getComputedStyle`), not
+current theme (`getComputedStyle`), not
 hardcoded ones, so the exported card actually matches what you're looking
 at. On a browser that supports sharing files (`navigator.share`), it
 opens the normal share sheet; everywhere else it downloads a PNG
@@ -272,48 +278,108 @@ spec beyond a one-line description, so every extractor in
 field-name spellings) and simply omits a section it can't make sense of,
 same philosophy as the weather forecast-text handling in `api/weather.js`.
 
-## Design languages: Standard / Material 3 / Liquid Glass
+## Material 3 — the app's one and only design language
 
-Settings has one main control — a three-way segmented slider (Standard /
-Material 3 / Liquid Glass) — plus a "Match my device" toggle above it and
-a color palette below it. All three live in `js/design.js`:
+Earlier stages let you pick between three design languages (Standard /
+Material 3 / Liquid Glass) plus a custom color palette. That picker is
+gone. The whole app is Material 3 now, full stop — no toggle, no
+alternate skins to maintain.
 
-- **Auto-match** is on by default and picks a design language from a
-  best-effort OS-family sniff (`detectOsDesign()`): iOS/iPadOS/macOS →
-  Liquid Glass, Android → Material 3, everything else → Standard. There's
-  no web API for "this is specifically a Pixel" (or literally "this uses
-  Apple's Liquid Glass") — only a general UA/platform signature — so this
-  is documented as OS-family detection, not hardware detection, both in
-  the module comment and in the Settings copy itself.
-- Picking a value on the segmented control always overrides auto-match
-  (and turns the toggle off) — the two controls represent one underlying
-  state, not two independent ones.
-- Almost the entire visual shift is token remapping, not per-component
-  rewrites: every card/button/input in `styles.css` already reads from
-  `--color-*`, `--radius-*`, and `--shadow-card`, so
-  `[data-design='m3']`/`[data-design='glass']` mostly just redefine those
-  tokens once, near the top of the file. On top of that: Material 3 gets
-  pill-shaped buttons/segmented controls, tonal (flat) secondary buttons,
-  and a real state-layer ripple on press (`js/ripple.js`, delegated at the
-  document level so it works across every view without per-element
-  wiring, and a genuine no-op outside `data-design="m3"`); Liquid Glass
-  gets translucent blurred surfaces with an inset highlight rim over a
-  soft color wash on the page background.
-- The hero tile keeps its own photographic satellite-image treatment in
-  every design language — it's meant to read as a photo card, not a
+- **Every color is generated, not hand-picked.** `css/styles.css`'s
+  token block is the real output of Google's own Material Color
+  Utilities (HCT color space, the "TonalSpot" baseline scheme, standard
+  contrast) run once against a single seed — Fairway's own brand green,
+  `#1f4d3a`. Primary, secondary, tertiary, error, and every surface/
+  outline tone for both light and dark are that algorithm's output, not
+  approximated by hand. `sand`, `bogey`, and `double` stay as their own
+  hand-set "extended" colors on top of the generated scheme — M3
+  explicitly leaves room for exactly that for colors that carry their
+  own meaning (a warning highlight, scorecard conventions) rather than
+  brand identity.
+- **Shape, elevation, type, and motion** all follow M3's own scale
+  rather than the app's prior ad hoc values: the official corner-radius
+  steps (`--shape-xs` through `--shape-full`), the official two-layer
+  elevation shadows, Roboto at M3's weight/size roles (scores stay in
+  IBM Plex Mono — a scorecard convention, not a second brand typeface),
+  and M3's standard/emphasized easing curves.
+- **Every surface gets a real hover/focus/press state**, not just a
+  press ripple — this app now runs on real pointer devices at tablet/
+  desktop widths (see the next section), where hover means something.
+  A shared `::after` overlay (see the "State layers & ripple" block near
+  the top of `styles.css`) handles the static hover/focus wash at the
+  official M3 opacities; `js/ripple.js` spawns the animated press circle
+  on top, delegated at the document level so it works across every view
+  without per-element wiring.
+- **Segmented controls** (theme, the weather filter on Stats) use a real
+  sliding tonal pill, not an instant background swap — `js/segmentedThumb.js`
+  animates it between positions across re-renders using the FLIP
+  technique, the same way M3's own Tabs indicator slides between tabs.
+- The hero tile keeps its own photographic satellite-image treatment
+  regardless of theme — it's meant to read as a photo card, not a
   themed surface.
-- **Color palette** (Fairway/Ocean/Sunset/Slate presets, or a custom
-  primary/secondary/tertiary picker) applies across all three design
-  languages, by setting `--color-fairway`/`-bright`/`-sand`/`-sky` as
-  inline styles on `<html>` — inline styles outrank any of the tokens
-  above regardless of which design language is active, so there's no
-  design-specific palette plumbing needed. It intentionally doesn't vary
-  by light/dark (one color per role, not two) — matches the original
-  plan's "edit primary/secondary/tertiary color" scope without doubling
-  the settings UI.
-- `theme-color` (the browser/OS chrome tint) follows both light/dark *and*
-  design language automatically — see `syncThemeColorMeta()` in
-  `js/theme.js`.
+- `theme-color` (the browser/OS chrome tint) still follows light/dark
+  automatically — see `syncThemeColorMeta()` in `js/theme.js` — it just
+  no longer has a design-language dimension to also track.
+
+## Responsive layout: phone, tablet, desktop
+
+The app used to be phone-only (one `@media` query in the entire
+stylesheet, everything capped at 480px). It now follows M3's own
+breakpoint guidance — compact, medium, expanded — and the "Responsive"
+section at the bottom of `styles.css` is the only place that changes:
+
+- **Compact** (under 600px, phone) is unchanged from before: the
+  tile-stack home screen, no persistent navigation chrome beyond the
+  header.
+- **Medium** (600px+, tablet) adds a persistent **M3 navigation rail**
+  (`js/components/navRail.js`) pinned to the leading edge — Home,
+  Courses, Bags, Stats, Settings, with a filled icon + tonal pill
+  marking whichever section you're in. It's purely additive: phone
+  still has no bottom nav bar and never will by design (the tile stack
+  **is** the primary navigation there) — the rail only exists because
+  there's finally room for one. Content also gets a bit more breathing
+  room (wider panel, bigger padding).
+- **Expanded** (840px+, desktop) turns the home screen into a real
+  dashboard — the hero tile spans full width with the three secondary
+  tiles arranged in a row beneath it, courses/bags lists and the stats
+  grid pick up extra columns — while forms (adding a course, editing a
+  bag) stay capped at a comfortable reading width instead of stretching
+  edge to edge, since a wide form is a worse form, not a better one.
+
+`renderNavRail()` is called from `router.js` on every navigation
+alongside `renderHeader()` — both are "chrome that reacts to the
+current route," so they run together.
+
+## Pricing, booking & Youth on Course
+
+Three fields live on the course record now, entered by hand from the
+course edit screen (`js/views/courses.js`) — there's no free API for
+live green fees, booking URLs, or which specific courses participate in
+[Youth on Course](https://youthoncourse.org), so this is the same
+"you tell us" pattern the app already uses for par on a manually-added
+course:
+
+- **Price** — a `$min`–`$max` range (or just one number for a flat
+  rate), plus an optional free-text "pricing details" field for
+  anything a single range can't capture (twilight rates, member
+  pricing). The range is the headline on the home screen's hero tile;
+  the details, if you filled them in, sit behind a "Details" tap that
+  opens a small bottom sheet.
+- **Booking link** — an optional URL. If it's set, the hero tile gets a
+  "Book" button that opens it in a new tab, right next to the price.
+- **Youth on Course participation** — a toggle on the course form,
+  independent of pricing. It only actually shows anywhere if you've
+  also turned on **Settings → Youth on Course** (off by default — it's
+  a personal-eligibility setting, not something to surface to everyone).
+  With both on, a participating course's hero tile leads with **"$5 or
+  less"** instead of your entered price range — that's the number
+  that's actually true for a member — and your regular price moves into
+  the same Details sheet instead of competing with it.
+
+`formatPriceRange()` (exported from `js/views/home.js`, alongside the
+other small cross-view helpers there) is the one place the `$45` vs.
+`$45–65` formatting logic lives — reused by the course list's meta line
+so the two never drift apart.
 
 ## Weather
 
@@ -526,12 +592,22 @@ coordinates to show anything useful.
    mapped.
 6. Back on the home screen, the top tile should show your real nearest
    course with its satellite image behind the text.
-7. In Settings, try the design language slider (Standard / Material 3 /
-   Liquid Glass) and the "Match my device" toggle, and a color palette —
-   confirm the palette carries over when you switch design language.
-8. On a phone, use the browser's "Add to Home Screen" / install prompt —
+7. In Settings, try the theme control (System/Light/Dark). If you flip on
+   Youth on Course, go mark a course as participating from its edit
+   screen (Settings → Manage courses → tap a course) — the home tile
+   should switch that course's price to "$5 or less," with your regular
+   price still reachable behind the "Details" button.
+8. If you set a price and/or booking link on a course, confirm both show
+   up on the home screen's hero tile, and that "Book" opens the link in
+   a new tab.
+9. Resize the browser window (or open the deployed URL on a tablet/
+   desktop) past about 600px wide — a navigation rail should appear on
+   the left, and past about 840px the home screen should reflow into a
+   full-width hero tile with the three secondary tiles in a row beneath
+   it.
+10. On a phone, use the browser's "Add to Home Screen" / install prompt —
    it should install with the golf-ball icon, open without browser chrome,
    and (after one normal visit while online) still open with airplane
    mode on.
-9. Everything from Stage 1 still applies: stats, settings, theme, and
+11. Everything from Stage 1 still applies: stats, settings, theme, and
    resuming a round after a refresh.

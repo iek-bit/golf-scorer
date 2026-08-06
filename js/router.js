@@ -8,6 +8,7 @@
 // right chrome without every view needing to know about the header.
 
 import { renderHeader } from './header.js';
+import { renderNavRail } from './components/navRail.js';
 
 const routes = [];
 
@@ -46,12 +47,14 @@ export async function renderRoute() {
 
   if (!matched) {
     renderHeader({ backTo: '/' });
+    renderNavRail(path || '/');
     outlet.innerHTML = `<p class="empty-state">Nothing here. <a href="#/">Back to home</a></p>`;
     return;
   }
 
   try {
     renderHeader(matched.meta || {});
+    renderNavRail(path || '/');
     await matched.handler(outlet, { ...matched.params, ...query });
     outlet.scrollTo(0, 0);
   } catch (err) {

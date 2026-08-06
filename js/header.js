@@ -7,6 +7,7 @@
 // stages (course map, shot placement, rangefinder, ...).
 
 import { toggleTheme, syncThemeToggle } from './theme.js';
+import { moonIcon } from './icons.js';
 
 export function renderHeader({ title, backTo, action } = {}) {
   const header = document.getElementById('app-header');
@@ -14,7 +15,7 @@ export function renderHeader({ title, backTo, action } = {}) {
   if (!backTo) {
     header.innerHTML = `
       <a class="wordmark" href="#/">Fairway</a>
-      <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme" type="button">☾</button>
+      <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme" type="button">${moonIcon(19)}</button>
     `;
     document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
     syncThemeToggle();
@@ -28,7 +29,7 @@ export function renderHeader({ title, backTo, action } = {}) {
   // declares the label (see app.js); the view itself wires the click
   // handler after this renders — see e.g. views/bags.js.
   header.innerHTML = `
-    <a class="icon-btn back-btn" href="#${backTo}" aria-label="Back">‹</a>
+    <a class="icon-btn back-btn" href="#${backTo}" aria-label="Back"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></a>
     <h1 class="header-title">${title || ''}</h1>
     ${action ? `<button type="button" id="header-action-btn" class="header-action-btn">${action.label}</button>` : `<span class="header-spacer" aria-hidden="true"></span>`}
   `;

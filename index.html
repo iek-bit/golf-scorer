@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Fairway — Golf Scorecard</title>
   <meta name="description" content="A minimalist, free golf scorecard and stat tracker." />
-  <meta name="theme-color" content="#121314" />
+  <meta name="theme-color" content="#0f1512" />
 
   <!-- Favicon + app icons — see icons/ (generated from a single square
        source image; maskable variants carry their own safe-zone padding
@@ -23,13 +23,17 @@
   <meta name="apple-mobile-web-app-title" content="Fairway" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
+  <!-- Roboto is Material 3's own typeface everywhere in this app now
+       (see the design-tokens banner at the top of styles.css); scores
+       stay in IBM Plex Mono, a deliberate scorecard convention kept
+       from every prior pass, not a second brand typeface. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Roboto:wght@400;500;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Roboto:wght@400;500;700&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="css/styles.css?v=12" />
+  <link rel="stylesheet" href="css/styles.css?v=13" />
   <!-- Leaflet: the map library behind course search results and the
        shot-tracking map on the play screen. Loaded globally (window.L)
        since this project has no bundler — see README for why. -->
@@ -37,17 +41,28 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
-  <div class="app-shell">
+  <div class="app-frame">
     <!--
-      The header's content depends on the screen: the home screen gets the
-      wordmark + theme toggle, every other screen gets a back button + title.
-      js/header.js fills this in per-route — see js/router.js.
+      A persistent M3 navigation rail — only shown at medium/expanded
+      widths (tablet/desktop; see the responsive section in styles.css).
+      On phone this stays empty/hidden and the tile-stack home screen is
+      the only navigation, same as always. js/components/navRail.js
+      fills this in and keeps it in sync with the current route.
     -->
-    <header id="app-header" class="app-header"></header>
+    <nav id="nav-rail" class="nav-rail" aria-label="Primary"></nav>
 
-    <main id="view-outlet" class="view-outlet" aria-live="polite"></main>
+    <div class="app-shell">
+      <!--
+        The header's content depends on the screen: the home screen gets the
+        wordmark + theme toggle, every other screen gets a back button + title.
+        js/header.js fills this in per-route — see js/router.js.
+      -->
+      <header id="app-header" class="app-header"></header>
+
+      <main id="view-outlet" class="view-outlet" aria-live="polite"></main>
+    </div>
   </div>
 
-  <script type="module" src="js/app.js?v=12"></script>
+  <script type="module" src="js/app.js?v=13"></script>
 </body>
 </html>

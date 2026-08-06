@@ -1,19 +1,12 @@
 import { storage } from '../storage.js';
 import { getThemeMode, setThemeMode } from '../theme.js';
-import { getDesignState, setDesignManual, setDesignAuto, getPaletteState, setPalettePreset, setCustomPalette, paletteIds, paletteFor } from '../design.js';
 import { getInstallState, promptInstall } from '../installPrompt.js';
 import { syncSegmentedThumb } from '../segmentedThumb.js';
-
-const DESIGN_LABELS = { standard: 'Standard', m3: 'Material 3', glass: 'Liquid Glass' };
-const PALETTE_LABELS = { fairway: 'Fairway', ocean: 'Ocean', sunset: 'Sunset', slate: 'Slate' };
+import { youthOnCourseIcon } from '../icons.js';
 
 export async function renderSettings(outlet) {
   const mode = await getThemeMode(); // null | 'light' | 'dark'
-  const design = await getDesignState(); // { auto, manual, detected }
-  const activeDesign = design.auto ? design.detected : design.manual;
-  const palette = await getPaletteState(); // null (= fairway default) | { id, primary, secondary, tertiary }
-  const activePaletteId = palette?.id || 'fairway';
-  const customColors = palette?.id === 'custom' ? palette : { ...paletteFor('fairway') };
+  const yocEnabled = await storage.getYouthOnCourseEnabled();
 
   outlet.innerHTML = `
     <section class="panel">
@@ -27,35 +20,19 @@ export async function renderSettings(outlet) {
       </div>
 
       <div class="settings-group">
-        <span class="settings-group-label">Design language</span>
-        <label class="settings-row settings-row-toggle" id="auto-design-row">
+        <span class="settings-group-label">Youth on Course</span>
+        <label class="settings-row settings-row-toggle" id="yoc-row">
+          <span class="settings-row-icon">${youthOnCourseIcon(20)}</span>
           <span>
-            Match my device
-            <span class="settings-row-subtext">${design.auto ? `Currently: ${DESIGN_LABELS[design.detected]}` : 'Off — pick one below'}</span>
+            I'm a Youth on Course member
+            <span class="settings-row-subtext">Shows a badge and $5-or-less pricing on courses you've marked as participating</span>
           </span>
-          <span class="toggle-switch ${design.auto ? 'is-on' : ''}" id="auto-design-toggle" role="switch" aria-checked="${design.auto}" tabindex="0"></span>
+          <span class="toggle-switch ${yocEnabled ? 'is-on' : ''}" id="yoc-toggle" role="switch" aria-checked="${yocEnabled}" tabindex="0"></span>
         </label>
-        <div class="segmented" id="design-segmented">
-          ${segmentButton('design', 'standard', 'Standard', activeDesign === 'standard')}
-          ${segmentButton('design', 'm3', 'Material 3', activeDesign === 'm3')}
-          ${segmentButton('design', 'glass', 'Liquid Glass', activeDesign === 'glass')}
-        </div>
-        <p class="stats-note">Browsers can't tell us exactly which phone you're on — "Match my device" goes by iOS/macOS vs. Android. Pick one manually any time to override it.</p>
-      </div>
-
-      <div class="settings-group">
-        <span class="settings-group-label">Color palette</span>
-        <div class="palette-swatch-row" id="palette-swatch-row">
-          ${paletteIds()
-            .map((id) => paletteSwatchHtml(id, activePaletteId === id))
-            .join('')}
-          ${paletteSwatchHtml('custom', activePaletteId === 'custom', customColors)}
-        </div>
-        <div class="custom-palette-panel ${activePaletteId === 'custom' ? '' : 'is-hidden'}" id="custom-palette-panel">
-          ${colorField('primary', 'Primary', customColors.primary)}
-          ${colorField('secondary', 'Secondary', customColors.secondary)}
-          ${colorField('tertiary', 'Tertiary', customColors.tertiary)}
-        </div>
+        <p class="stats-note">
+          Youth on Course is a nonprofit that gets junior golfers on the course for $5 or less at partner courses.
+          Mark a course as participating from its edit screen — see <a class="text-link" href="https://youthoncourse.org" target="_blank" rel="noopener">youthoncourse.org</a> for the directory and membership details.
+        </p>
       </div>
 
       ${renderInstallGroup(getInstallState())}
@@ -64,11 +41,11 @@ export async function renderSettings(outlet) {
         <span class="settings-group-label">Data</span>
         <a class="settings-row" href="#/courses">
           <span>Manage courses</span>
-          <span class="settings-row-chevron">›</span>
+          <span class="settings-row-chevron">${chevronIcon()}</span>
         </a>
         <a class="settings-row" href="#/bags">
           <span>Manage bags</span>
-          <span class="settings-row-chevron">›</span>
+          <span class="settings-row-chevron">${chevronIcon()}</span>
         </a>
         <button type="button" class="settings-row" id="export-data-btn">
           <span>Export my data</span>
@@ -85,7 +62,6 @@ export async function renderSettings(outlet) {
   `;
 
   syncSegmentedThumb('theme-segmented');
-  syncSegmentedThumb('design-segmented');
 
   document.getElementById('theme-segmented').addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-mode]');
@@ -95,55 +71,19 @@ export async function renderSettings(outlet) {
     renderSettings(outlet);
   });
 
-  document.getElementById('design-segmented').addEventListener('click', async (e) => {
-    const btn = e.target.closest('button[data-mode]');
-    if (!btn) return;
-    await setDesignManual(btn.dataset.mode);
-    renderSettings(outlet);
-  });
-
-  const handleAutoToggle = async () => {
-    await setDesignAuto(!design.auto);
+  const handleYocToggle = async () => {
+    await storage.saveYouthOnCourseEnabled(!yocEnabled);
     renderSettings(outlet);
   };
-  document.getElementById('auto-design-row').addEventListener('click', (e) => {
+  document.getElementById('yoc-row').addEventListener('click', (e) => {
     e.preventDefault(); // it's a <label> with no real form control inside — own the click fully
-    handleAutoToggle();
+    handleYocToggle();
   });
-  document.getElementById('auto-design-toggle').addEventListener('keydown', (e) => {
+  document.getElementById('yoc-toggle').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      handleAutoToggle();
+      handleYocToggle();
     }
-  });
-
-  document.getElementById('palette-swatch-row').addEventListener('click', async (e) => {
-    const btn = e.target.closest('button[data-palette]');
-    if (!btn) return;
-    const id = btn.dataset.palette;
-    if (id === 'custom') {
-      // Just reveal the pickers with sensible starting colors — don't
-      // commit anything until the user actually changes a color, so
-      // tapping "Custom" then walking away doesn't silently switch you
-      // off whatever preset you had.
-      document.getElementById('custom-palette-panel').classList.remove('is-hidden');
-      document.querySelectorAll('#palette-swatch-row button').forEach((b) => b.classList.toggle('is-active', b === btn));
-      return;
-    }
-    await setPalettePreset(id);
-    renderSettings(outlet);
-  });
-
-  document.getElementById('custom-palette-panel').addEventListener('input', async (e) => {
-    const input = e.target.closest('input[type="color"]');
-    if (!input) return;
-    const next = {
-      primary: document.getElementById('color-input-primary').value,
-      secondary: document.getElementById('color-input-secondary').value,
-      tertiary: document.getElementById('color-input-tertiary').value,
-    };
-    await setCustomPalette(next);
-    document.querySelectorAll('#palette-swatch-row button').forEach((b) => b.classList.toggle('is-active', b.dataset.palette === 'custom'));
   });
 
   const installBtn = document.getElementById('install-app-btn');
@@ -216,7 +156,7 @@ function renderInstallGroup(installState) {
       <span class="settings-group-label">App</span>
       <button type="button" class="settings-row" id="install-app-btn">
         <span>Install Fairway</span>
-        <span class="settings-row-chevron">›</span>
+        <span class="settings-row-chevron">${chevronIcon()}</span>
       </button>
     </div>
   `;
@@ -226,26 +166,6 @@ function segmentButton(group, mode, label, isActive) {
   return `<button type="button" class="segment-btn ${isActive ? 'is-active' : ''}" data-group="${group}" data-mode="${mode}">${label}</button>`;
 }
 
-function paletteSwatchHtml(id, isActive, customColors) {
-  const preset = id === 'custom' ? customColors : paletteFor(id);
-  const label = id === 'custom' ? 'Custom' : PALETTE_LABELS[id];
-  return `
-    <button type="button" class="palette-swatch ${isActive ? 'is-active' : ''}" data-palette="${id}" aria-label="${label} palette">
-      <span class="palette-swatch-dots">
-        <span style="background:${preset.primary}"></span>
-        <span style="background:${preset.secondary}"></span>
-        <span style="background:${preset.tertiary}"></span>
-      </span>
-      <span class="palette-swatch-label">${label}</span>
-    </button>
-  `;
-}
-
-function colorField(key, label, value) {
-  return `
-    <label class="color-input-field">
-      <span>${label}</span>
-      <input type="color" id="color-input-${key}" value="${value}" />
-    </label>
-  `;
+function chevronIcon() {
+  return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>`;
 }

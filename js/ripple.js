@@ -1,17 +1,15 @@
 // ripple.js
 //
-// A small Material 3 "state layer" ripple, delegated at the document level
-// so it works for every interactive surface across every view without
-// each view wiring it up individually — including content re-rendered
-// after this listener attaches (delegation, not per-element binding).
-// Only active when [data-design="m3"] is set on <html>; a no-op otherwise.
+// The Material 3 "state layer" ripple, delegated at the document level so
+// it works for every interactive surface across every view without each
+// view wiring it up individually — including content re-rendered after
+// this listener attaches (delegation, not per-element binding).
 
 const RIPPLE_SELECTOR =
-  '.btn, .tile, .icon-btn, .segment-btn, .settings-row, .course-card, .score-row, .list-row, .strip-cell, .stepper-btn, .par-confirm-btn, .track-shot-btn, .text-btn';
+  '.btn, .tile, .icon-btn, .segment-btn, .settings-row, .course-card, .score-row, .list-row, .strip-cell, .stepper-btn, .par-confirm-btn, .track-shot-btn, .text-btn, .fab, .nav-rail-item, .club-chip, .club-row-summary';
 
 export function initRipple() {
   document.addEventListener('pointerdown', (e) => {
-    if (document.documentElement.dataset.design !== 'm3') return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
 
     const target = e.target.closest(RIPPLE_SELECTOR);

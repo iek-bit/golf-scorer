@@ -15,9 +15,7 @@ const KEYS = {
   rounds: 'golf.rounds',
   bags: 'golf.bags',
   theme: 'golf.theme',
-  design: 'golf.design', // 'standard' | 'm3' | 'glass' — manual choice, used when designAuto is false
-  designAuto: 'golf.designAuto', // true = follow the device's OS family automatically
-  palette: 'golf.palette', // { id: 'fairway'|'ocean'|'sunset'|'slate'|'custom', primary, secondary, tertiary }
+  youthOnCourse: 'golf.youthOnCourse', // true = show Youth on Course pricing/badges on courses flagged as participating
 };
 
 function read(key, fallback) {
@@ -127,26 +125,14 @@ export const storage = {
     write(KEYS.theme, mode);
   },
 
-  // --- design language (Standard / Material 3 / Liquid Glass) ---
-  async getDesignPreference() {
-    return read(KEYS.design, 'standard'); // last manually-picked value (used when auto is off)
+  // --- Youth on Course (youthoncourse.org) ---
+  // Off by default — this is a personal-eligibility setting (only relevant
+  // to Youth on Course members), not a feature everyone wants surfaced.
+  async getYouthOnCourseEnabled() {
+    return read(KEYS.youthOnCourse, false);
   },
-  async saveDesignPreference(design) {
-    write(KEYS.design, design);
-  },
-  async getDesignAuto() {
-    return read(KEYS.designAuto, true); // default: match the device automatically
-  },
-  async saveDesignAuto(auto) {
-    write(KEYS.designAuto, auto);
-  },
-
-  // --- color palette ---
-  async getPalette() {
-    return read(KEYS.palette, null); // null = default Fairway palette
-  },
-  async savePalette(palette) {
-    write(KEYS.palette, palette);
+  async saveYouthOnCourseEnabled(enabled) {
+    write(KEYS.youthOnCourse, enabled);
   },
 
   // --- utility ---

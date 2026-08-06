@@ -29,9 +29,27 @@ export function makeId() {
  * mapHoleFromShots in views/play.js) — that geometry is never fetched
  * from OpenGolfAPI, since their precise green/tee data isn't free.
  *
- * @param {{name: string, numHoles: 9|18, holes: {number: number, par: number, parConfirmed?: boolean}[], source?: 'manual'|'api', externalId?: string|null, location?: {lat:number,lng:number}|null}} args
+ * Pricing, a booking link, and Youth on Course participation are all
+ * entered by hand (see views/courses.js) — there's no free API for live
+ * green fees, tee-time booking URLs, or which specific courses
+ * participate in Youth on Course, so this is the same "you tell us"
+ * pattern as par on a manually-added course.
+ *
+ * @param {{name: string, numHoles: 9|18, holes: {number: number, par: number, parConfirmed?: boolean}[], source?: 'manual'|'api', externalId?: string|null, location?: {lat:number,lng:number}|null, priceMin?: number|null, priceMax?: number|null, priceDetails?: string, bookingUrl?: string|null, youthOnCourse?: boolean}} args
  */
-export function makeCourse({ name, numHoles, holes, source = 'manual', externalId = null, location = null }) {
+export function makeCourse({
+  name,
+  numHoles,
+  holes,
+  source = 'manual',
+  externalId = null,
+  location = null,
+  priceMin = null,
+  priceMax = null,
+  priceDetails = '',
+  bookingUrl = null,
+  youthOnCourse = false,
+}) {
   const now = new Date().toISOString();
   return {
     id: makeId(),
@@ -41,6 +59,11 @@ export function makeCourse({ name, numHoles, holes, source = 'manual', externalI
     source, // 'manual' | 'api'
     externalId, // OpenGolfAPI course id, or null for manually-added courses
     location, // { lat, lng } — the course's general location, for "nearest course"
+    priceMin, // number|null — headline price range shown on the hero card
+    priceMax, // number|null — same as priceMin when there's a single flat rate
+    priceDetails, // free text: twilight/member/weekday rates, shown behind a "details" tap
+    bookingUrl, // string|null — tee-time booking link for this course
+    youthOnCourse, // boolean — this course participates in the Youth on Course program (youthoncourse.org)
     createdAt: now,
     updatedAt: now,
   };

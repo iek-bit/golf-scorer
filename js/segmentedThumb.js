@@ -1,24 +1,20 @@
 // segmentedThumb.js
 //
-// Liquid Glass's segmented control needs a real sliding "thumb" (see the
-// CSS comment above [data-design='glass'] .segment-thumb) — but every
-// view in this app fully replaces its markup via innerHTML on each
-// interaction, so there's no persistent DOM element to just animate a
-// transform on. This bridges that with the FLIP technique (First, Last,
-// Invert, Play): remember where the thumb visually was before a
-// re-render, and after the new markup lands, animate FROM that
-// remembered position TO the new one — so it reads as one thumb sliding
-// across two renders, not two different elements appearing/disappearing.
-//
-// A no-op outside Liquid Glass — Standard and Material 3 use a solid
-// background directly on whichever button is active (see styles.css)
-// and never call this at all.
+// M3's segmented button row highlights the active segment with a tonal
+// fill — and like M3 Tabs' sliding indicator, that fill reads better as
+// one shape animating between positions than as two different segments
+// silently swapping backgrounds. Every view in this app fully replaces
+// its markup via innerHTML on each interaction though, so there's no
+// persistent DOM element to just animate a transform on. This bridges
+// that with the FLIP technique (First, Last, Invert, Play): remember
+// where the thumb visually was before a re-render, and after the new
+// markup lands, animate FROM that remembered position TO the new one —
+// so it reads as one pill sliding across two renders, not one shape
+// disappearing and a different one appearing elsewhere.
 
 const lastRects = new Map(); // containerId -> {left, width} relative to its .segmented container
 
 export function syncSegmentedThumb(containerId) {
-  if (document.documentElement.dataset.design !== 'glass') return;
-
   const container = document.getElementById(containerId);
   if (!container) return;
   const active = container.querySelector('.segment-btn.is-active');
