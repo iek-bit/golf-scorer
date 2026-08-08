@@ -2,7 +2,7 @@ import { storage } from '../storage.js';
 import { escapeHtml } from './home.js';
 import { getCurrentPosition, haversineMeters, metersToYards } from '../geo.js';
 import { SATELLITE_TILE_URL, SATELLITE_ATTRIBUTION } from '../mapConfig.js';
-import { pinIcon } from '../icons.js';
+import { pinIcon, flagIcon, crosshairIcon } from '../icons.js';
 
 const POSITION_ONLY_ZOOM = 17; // moderate — "see the full hole," not zoomed all the way in
 const PAR_OPTIONS = [3, 4, 5, 6];
@@ -58,7 +58,7 @@ export async function renderPlay(outlet, params) {
           </div>
 
           <button type="button" class="track-shot-btn ${holeStarted ? '' : 'track-shot-btn--start'}" id="track-shot-btn" aria-label="${holeStarted ? 'Track shot' : 'Start hole'}">
-            ${holeStarted ? crosshairIcon() : flagIcon()}
+            ${holeStarted ? crosshairIcon(22) : flagIcon(20)}
             <span>${holeStarted ? 'Track shot' : 'Start hole'}</span>
           </button>
           ${trackShotError ? `<p class="field-hint field-hint-error">${escapeHtml(trackShotError)}</p>` : ''}
@@ -418,17 +418,6 @@ export function computeTeeGreenFromShots(shots) {
 
 function mappingHint(holeStarted) {
   return holeStarted ? 'Last tracked shot will mark the green' : 'Start hole marks the tee — free, not a stroke';
-}
-
-// Small line-art icons instead of an emoji, so the button reads as part of
-// the app rather than a generic system glyph. currentColor picks up
-// whatever color the button itself is styled with.
-function flagIcon() {
-  return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="21" x2="5" y2="3"/><path d="M5 4h13l-3 4 3 4H5"/></svg>`;
-}
-
-function crosshairIcon() {
-  return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><line x1="12" y1="1.5" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22.5"/><line x1="1.5" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22.5" y2="12"/></svg>`;
 }
 
 function renderRangefinderContent(holeDef, position) {

@@ -1,6 +1,7 @@
 import { storage } from '../storage.js';
 import { makeBag, makeId } from '../models.js';
 import { escapeHtml } from './home.js';
+import { trashIcon, chevronUpIcon, chevronDownIcon, dragHandleIcon } from '../icons.js';
 
 export async function renderBags(outlet) {
   const bags = await storage.getBags();
@@ -18,7 +19,7 @@ export async function renderBags(outlet) {
               <span class="list-row-name">${escapeHtml(b.name)}</span>
               <span class="list-row-meta">${b.clubs.map((c) => escapeHtml(c.name)).join(', ') || 'No clubs yet'}</span>
             </a>
-            ${bags.length > 1 ? `<button type="button" class="icon-btn delete-bag-btn" data-id="${b.id}" data-name="${escapeHtml(b.name)}" aria-label="Delete ${escapeHtml(b.name)}">${trashIcon()}</button>` : ''}
+            ${bags.length > 1 ? `<button type="button" class="icon-btn delete-bag-btn" data-id="${b.id}" data-name="${escapeHtml(b.name)}" aria-label="Delete ${escapeHtml(b.name)}">${trashIcon(16)}</button>` : ''}
           </li>
         `
           )
@@ -101,14 +102,15 @@ function renderBagForm(outlet, { bag, isNew, bagCount }) {
         return `
       <div class="club-card ${isOpen ? 'is-expanded' : ''}" data-club-id="${c.id}">
         <div class="list-row club-row">
+          <button type="button" class="club-drag-handle" data-club-id="${c.id}" aria-label="Drag to reorder ${escapeHtml(c.name)}">${dragHandleIcon(20)}</button>
           <button type="button" class="club-row-summary" data-toggle="${c.id}">
             <span class="list-row-name">${escapeHtml(c.name)}</span>
             ${c.brand ? `<span class="list-row-meta">${escapeHtml(c.brand)}</span>` : ''}
           </button>
           <div class="club-row-actions">
-            <button type="button" class="icon-btn club-move-btn" data-index="${i}" data-dir="-1" aria-label="Move ${escapeHtml(c.name)} up" ${i === 0 ? 'disabled' : ''}>${upIcon()}</button>
-            <button type="button" class="icon-btn club-move-btn" data-index="${i}" data-dir="1" aria-label="Move ${escapeHtml(c.name)} down" ${i === bag.clubs.length - 1 ? 'disabled' : ''}>${downIcon()}</button>
-            <button type="button" class="icon-btn club-remove-btn" data-index="${i}" aria-label="Remove ${escapeHtml(c.name)}">${trashIcon()}</button>
+            <button type="button" class="icon-btn club-move-btn" data-index="${i}" data-dir="-1" aria-label="Move ${escapeHtml(c.name)} up" ${i === 0 ? 'disabled' : ''}>${chevronUpIcon(14)}</button>
+            <button type="button" class="icon-btn club-move-btn" data-index="${i}" data-dir="1" aria-label="Move ${escapeHtml(c.name)} down" ${i === bag.clubs.length - 1 ? 'disabled' : ''}>${chevronDownIcon(14)}</button>
+            <button type="button" class="icon-btn club-remove-btn" data-index="${i}" aria-label="Remove ${escapeHtml(c.name)}">${trashIcon(16)}</button>
           </div>
         </div>
         ${
@@ -161,6 +163,200 @@ function renderBagForm(outlet, { bag, isNew, bagCount }) {
       removeClubWithAnimation(Number(removeBtn.dataset.index));
     }
   });
+
+  // ---- Drag to reorder ----
+  //
+  // One handle-driven implementation covers both input types, with a
+  // different activation rule per pointer type:
+  //  - mouse/pen: dragging starts immediately on press, but ONLY from the
+  //    handle — clicking/dragging anywhere else on the row (the name, the
+  //    move/remove buttons) behaves exactly as it always has.
+  //  - touch: the same handle requires a short hold (LONG_PRESS_MS)
+  //    before a drag begins. Without that, a finger just trying to
+  //    scroll the page past this list would register as an accidental
+  //    reorder the instant it landed on the handle.
+  //
+  // While dragging, the card is translated with a live CSS transform and
+  // swapped with a neighbor via a simple accumulator-plus-threshold
+  // check (classic adjacent-swap reordering) — chosen over a full
+  // "insert at nearest gap" algorithm because every row is the same
+  // height (any expanded detail view is collapsed the moment a drag
+  // starts, specifically so this height assumption always holds), which
+  // makes the accumulator approach exact rather than approximate.
+  // bag.clubs itself is only reconciled once, on release, by reading the
+  // final DOM order — same "mutate locally, Save persists" pattern as
+  // every other edit on this screen (see saveBag()).
+
+  const LONG_PRESS_MS = 350;
+  const TOUCH_MOVE_CANCEL_PX = 10; // a touch that drifts this far before the hold completes is a scroll, not a grab
+  const AUTOSCROLL_EDGE_PX = 70; // how close to the top/bottom of the viewport triggers scrolling
+  const AUTOSCROLL_MAX_SPEED = 16; // px per animation frame at the very edge
+
+  let dragState = null; // { pointerId, cardEl, translateY, lastY }
+  let longPress = null; // { timer, moveListener, upListener } — only set while waiting out a touch hold
+  let autoScrollFrame = null; // requestAnimationFrame handle — only set while actively auto-scrolling
+  let autoScrollBy = 0; // signed px/frame; 0 means "not near an edge"
+
+  clubList.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.club-drag-handle');
+    if (!handle) return;
+    const card = handle.closest('.club-card');
+    if (!card) return;
+
+    if (e.pointerType === 'touch') {
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const cancel = () => {
+        clearTimeout(longPress.timer);
+        document.removeEventListener('pointermove', onWaitMove);
+        document.removeEventListener('pointerup', cancel);
+        document.removeEventListener('pointercancel', cancel);
+        longPress = null;
+      };
+      const onWaitMove = (ev) => {
+        if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > TOUCH_MOVE_CANCEL_PX) cancel();
+      };
+      const timer = setTimeout(() => {
+        cancel();
+        beginDrag(card, handle, e);
+      }, LONG_PRESS_MS);
+      longPress = { timer };
+      document.addEventListener('pointermove', onWaitMove);
+      document.addEventListener('pointerup', cancel, { once: true });
+      document.addEventListener('pointercancel', cancel, { once: true });
+    } else {
+      // Mouse or pen: the handle IS the deliberate target already — no
+      // hold needed, dragging begins on press.
+      e.preventDefault(); // avoid a stray text-selection drag on desktop
+      beginDrag(card, handle, e);
+    }
+  });
+
+  function beginDrag(card, handle, e) {
+    if (expandedClubId) {
+      // Collapse first — see the module comment above on why every row
+      // needs to be the same height for the swap math to be exact.
+      expandedClubId = null;
+      renderClubRows();
+      // renderClubRows() just replaced every node, including the card
+      // and handle passed in — re-find both from the fresh DOM before
+      // continuing, or setPointerCapture below would be called on an
+      // element that's no longer attached to anything.
+      card = clubList.querySelector(`.club-card[data-club-id="${card.dataset.clubId}"]`);
+      if (!card) return;
+      handle = card.querySelector('.club-drag-handle');
+      if (!handle) return;
+    }
+
+    handle.setPointerCapture(e.pointerId);
+    card.classList.add('is-dragging');
+    dragState = { pointerId: e.pointerId, cardEl: card, translateY: 0, lastY: e.clientY };
+
+    document.addEventListener('pointermove', onDragMove);
+    document.addEventListener('pointerup', endDrag);
+    document.addEventListener('pointercancel', endDrag);
+  }
+
+  function onDragMove(e) {
+    if (!dragState || e.pointerId !== dragState.pointerId) return;
+    e.preventDefault();
+
+    const dy = e.clientY - dragState.lastY;
+    dragState.lastY = e.clientY;
+    dragState.translateY += dy;
+    dragState.cardEl.style.transform = `translateY(${dragState.translateY}px)`;
+
+    const cardHeight = dragState.cardEl.offsetHeight;
+    const threshold = cardHeight / 2;
+
+    if (dragState.translateY > threshold) {
+      const next = dragState.cardEl.nextElementSibling;
+      if (next && next.classList.contains('club-card')) {
+        clubList.insertBefore(next, dragState.cardEl);
+        dragState.translateY -= cardHeight;
+        dragState.cardEl.style.transform = `translateY(${dragState.translateY}px)`;
+      }
+    } else if (dragState.translateY < -threshold) {
+      const prev = dragState.cardEl.previousElementSibling;
+      if (prev && prev.classList.contains('club-card')) {
+        clubList.insertBefore(dragState.cardEl, prev);
+        dragState.translateY += cardHeight;
+        dragState.cardEl.style.transform = `translateY(${dragState.translateY}px)`;
+      }
+    }
+
+    updateAutoScroll(e.clientY);
+  }
+
+  // Lets a drag that's held near the top or bottom edge of the viewport
+  // keep scrolling the page — without this, a club list longer than one
+  // screenful would strand you: there'd be no way to drag a club past
+  // whatever's currently visible, since lifting your finger to scroll
+  // manually also ends the drag. Speed ramps linearly from 0 at the edge
+  // of the trigger zone up to AUTOSCROLL_MAX_SPEED right at the
+  // viewport's edge, rather than a single fixed speed, so a small
+  // overshoot near the boundary doesn't feel like it suddenly kicks into
+  // full speed.
+  function updateAutoScroll(clientY) {
+    const viewportHeight = window.innerHeight;
+    if (clientY < AUTOSCROLL_EDGE_PX) {
+      const depth = (AUTOSCROLL_EDGE_PX - clientY) / AUTOSCROLL_EDGE_PX; // 0 at the zone's outer edge, 1 at the very top
+      autoScrollBy = -Math.max(2, depth * AUTOSCROLL_MAX_SPEED);
+    } else if (clientY > viewportHeight - AUTOSCROLL_EDGE_PX) {
+      const depth = (clientY - (viewportHeight - AUTOSCROLL_EDGE_PX)) / AUTOSCROLL_EDGE_PX;
+      autoScrollBy = Math.max(2, depth * AUTOSCROLL_MAX_SPEED);
+    } else {
+      autoScrollBy = 0;
+    }
+
+    if (autoScrollBy !== 0 && autoScrollFrame == null) {
+      autoScrollFrame = requestAnimationFrame(runAutoScroll);
+    }
+  }
+
+  // Runs on its own rAF loop rather than only reacting to pointermove —
+  // holding the pointer still at the edge (the normal way to say "keep
+  // scrolling") produces no further pointermove events at all, so the
+  // loop has to keep itself going independently once started. It only
+  // stops itself once the pointer's moved back out of the edge zone
+  // (autoScrollBy reset to 0 by updateAutoScroll above) or the drag has
+  // ended (dragState cleared by endDrag).
+  function runAutoScroll() {
+    if (!dragState || autoScrollBy === 0) {
+      autoScrollFrame = null;
+      return;
+    }
+    window.scrollBy(0, autoScrollBy);
+    autoScrollFrame = requestAnimationFrame(runAutoScroll);
+  }
+
+  function stopAutoScroll() {
+    if (autoScrollFrame != null) cancelAnimationFrame(autoScrollFrame);
+    autoScrollFrame = null;
+    autoScrollBy = 0;
+  }
+
+  function endDrag(e) {
+    if (!dragState || e.pointerId !== dragState.pointerId) return;
+    const { cardEl } = dragState;
+
+    document.removeEventListener('pointermove', onDragMove);
+    document.removeEventListener('pointerup', endDrag);
+    document.removeEventListener('pointercancel', endDrag);
+    stopAutoScroll();
+
+    cardEl.classList.remove('is-dragging');
+    cardEl.style.transform = '';
+    dragState = null;
+
+    // Commit the visual order (already correct on screen from the swaps
+    // above) into the real data — the single source of truth from here
+    // on, same as every other mutation on this screen: local only until
+    // the header Save button persists it.
+    const orderedIds = [...clubList.querySelectorAll('.club-card')].map((el) => el.dataset.clubId);
+    bag.clubs.sort((a, b) => orderedIds.indexOf(a.id) - orderedIds.indexOf(b.id));
+    renderClubRows(); // refreshes each row's up/down disabled state and data-index values to match the new order
+  }
 
   function removeClubWithAnimation(index) {
     const card = clubList.querySelector(`.club-card[data-club-id="${bag.clubs[index].id}"]`);
@@ -258,16 +454,4 @@ function renderBagForm(outlet, { bag, isNew, bagCount }) {
       location.hash = '#/bags';
     });
   }
-}
-
-function trashIcon() {
-  return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16Z"/></svg>`;
-}
-
-function upIcon() {
-  return `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 15 12 8 19 15"/></svg>`;
-}
-
-function downIcon() {
-  return `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 12 16 19 9"/></svg>`;
 }

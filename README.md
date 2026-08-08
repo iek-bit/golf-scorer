@@ -1,5 +1,6 @@
 # Fairway — Minimalist Golf Tracker
 
+
 Stage 1 (Core MVP) + Stage 2 (Location & Mapping, in progress): a digital
 scorecard with course search, GPS shot tracking, and a rangefinder. Course
 hole-geometry (tee/green) is built organically the first time each hole is
@@ -21,7 +22,7 @@ css/styles.css       All styling — Material 3 design tokens (generated from th
 js/app.js            Registers routes, boots theme/ripple, registers the service worker
 js/router.js         Tiny hash-based router (#/, #/courses, #/round/:id/play, ...) — now parses ?query too
 js/header.js         Renders the header per-route: wordmark+toggle on home, back+title elsewhere
-js/icons.js          Small SVG icon helpers shared across 2+ views (single-use icons stay local to their view)
+js/icons.js          Every icon in the app — Google Material Symbols paths, shared across 2+ views (see "Icons" below)
 js/models.js         Data shapes (Course, Round, Player) + id/factory helpers
 js/storage.js        The ONLY file that touches localStorage — see below
 js/theme.js          Light/dark handling (system default + manual override, or explicit choice)
@@ -89,6 +90,28 @@ redesign:
   `header.js` handles the chrome automatically; the view itself never
   touches the header.
 
+## Icons
+
+Every icon in the app comes from Google's official **Material Symbols**
+set (Outlined, weight 400 — [fonts.google.com/icons](https://fonts.google.com/icons)),
+pulled from the `@material-symbols/svg-400` package (Apache 2.0) rather
+than hand-drawn or approximated. `js/icons.js` is the single home for
+every icon used more than once across the app — settings, theme toggle,
+Youth on Course tag, external link, chevron, pin, info, close, trash,
+up/down arrows, flag, crosshair, directions/navigation, back arrow, and
+the five nav-rail glyphs (home/courses/bags/stats/settings, each with an
+outlined and filled variant for the rail's active-state treatment). A
+view that only ever needs one icon still just defines it locally (see the
+weather condition icons in `js/api/weather.js` — self-contained, only
+used in one place, not worth centralizing) — `icons.js` is only for the
+ones that repeat, per its own long-standing rule.
+
+Icons render as filled glyphs (`fill="currentColor"`, Material Symbols'
+own `viewBox="0 -960 960 960"` coordinate space) rather than the stroke
+icons used in earlier passes — that's the Material Symbols style, and
+matches how Google's own Material 3 components render icons. No system
+emoji anywhere in the app; every icon is a real, attributable SVG path.
+
 ## Course search — and why it's scoped the way it is
 
 Starting a round automatically searches nearby using your location as soon
@@ -154,7 +177,7 @@ API-sourced ones. Worth knowing:
   — the suggested course preselected on the holes step, with a "Not this
   one?" link back to search — instead of a blank searchable list that
   didn't even surface the course that was just suggested.
-- The home screen's hero tile now has a small directions button (top-right
+- The home screen's hero tile has a small directions button (top-right
   corner) that opens Google Maps with driving directions to that course —
   a plain `maps.google.com/dir` link, no API key needed.
 
@@ -296,6 +319,8 @@ alternate skins to maintain.
   explicitly leaves room for exactly that for colors that carry their
   own meaning (a warning highlight, scorecard conventions) rather than
   brand identity.
+- **Every icon is a real Google Material Symbol**, not hand-drawn or
+  approximated — see "Icons" above.
 - **Shape, elevation, type, and motion** all follow M3's own scale
   rather than the app's prior ad hoc values: the official corner-radius
   steps (`--shape-xs` through `--shape-full`), the official two-layer
@@ -309,14 +334,21 @@ alternate skins to maintain.
   the top of `styles.css`) handles the static hover/focus wash at the
   official M3 opacities; `js/ripple.js` spawns the animated press circle
   on top, delegated at the document level so it works across every view
-  without per-element wiring.
+  without per-element wiring. The browser's own default tap-highlight
+  (a translucent blue rectangle on touch) is explicitly suppressed
+  (`-webkit-tap-highlight-color: transparent`, plus `touch-action:
+  manipulation` to remove the ~300ms tap-registration delay some mobile
+  browsers apply by default) so nothing competes with this app's own
+  state-layer treatment.
 - **Segmented controls** (theme, the weather filter on Stats) use a real
   sliding tonal pill, not an instant background swap — `js/segmentedThumb.js`
   animates it between positions across re-renders using the FLIP
   technique, the same way M3's own Tabs indicator slides between tabs.
 - The hero tile keeps its own photographic satellite-image treatment
   regardless of theme — it's meant to read as a photo card, not a
-  themed surface.
+  themed surface. Its text is plain bold white with a drop shadow (not
+  a green accent color, which was hard to read against actual grass/
+  fairway satellite imagery) so it stays legible over any course's photo.
 - `theme-color` (the browser/OS chrome tint) still follows light/dark
   automatically — see `syncThemeColorMeta()` in `js/theme.js` — it just
   no longer has a design-language dimension to also track.
@@ -375,6 +407,13 @@ course:
   less"** instead of your entered price range — that's the number
   that's actually true for a member — and your regular price moves into
   the same Details sheet instead of competing with it.
+- The Settings screen's Youth on Course explanation (what the program
+  is, where to find the directory) lives behind a small circled-`i`
+  button next to the toggle rather than as permanent on-screen text —
+  tapping it opens the same bottom-sheet component used for course price
+  details and the play screen's club picker, so it's one consistent
+  "tap for more info" pattern rather than a paragraph everyone scrolls
+  past every time they open Settings.
 
 `formatPriceRange()` (exported from `js/views/home.js`, alongside the
 other small cross-view helpers there) is the one place the `$45` vs.
@@ -421,6 +460,42 @@ Where it shows up:
 - Stats' "Recent rounds" gets a filter row — but only for conditions that
   actually appear in your history, so it's never a row of buttons that
   always return zero results.
+
+## Reordering clubs
+
+Each club row in a bag's editor now has a drag handle (a six-dot grip,
+leftmost in the row) for reordering by drag, alongside the up/down arrow
+buttons that were already there — the arrows stay as a keyboard/
+screen-reader-accessible way to reorder, the handle is a faster
+mouse/touch shortcut for the same thing, not a replacement.
+
+- **Touch**: press and hold the handle briefly (~350ms) before it picks
+  up — a plain tap or a finger just passing through while scrolling the
+  page doesn't trigger a reorder. Once picked up, drag up or down to
+  move it; release to drop it in place.
+- **Mouse/pen**: dragging starts immediately on press, but only from the
+  handle itself — clicking or dragging anywhere else on the row (the
+  name, the move/remove buttons) behaves exactly as it always has.
+
+Implementation notes, if extending this later (`js/views/bags.js`):
+- Built on the Pointer Events API (`pointerdown`/`pointermove`/`pointerup`),
+  which unifies mouse, touch, and pen handling in one code path rather
+  than separate mouse and touch listeners.
+- If the club being dragged had its detail fields expanded, that's
+  collapsed the instant a drag begins — every row needs to be the same
+  height for the reorder math (an accumulator-plus-threshold adjacent
+  swap) to be exact rather than approximate.
+- The visual reorder happens live (via a CSS transform on the dragged
+  card, and swapping DOM position with a neighbor once the drag crosses
+  half that neighbor's height); `bag.clubs` itself is only reconciled
+  once, on release, by reading the final on-screen order. Same as every
+  other edit on this screen, that's a local mutation — nothing is
+  persisted until the header's Save button is tapped.
+- Dragging near the top or bottom edge of the screen auto-scrolls the
+  page, so a bag with more clubs than fit on one screen can still be
+  fully reordered without needing to lift your finger to scroll
+  manually (which would end the drag). Scroll speed ramps up the closer
+  the pointer gets to the actual edge, rather than a single fixed speed.
 
 ## Managing your data
 
@@ -591,12 +666,15 @@ coordinates to show anything useful.
    of the map, and the map should already be framed around the hole you
    mapped.
 6. Back on the home screen, the top tile should show your real nearest
-   course with its satellite image behind the text.
+   course with its satellite image behind the text, with the hero text
+   reading as plain bold white over the photo.
 7. In Settings, try the theme control (System/Light/Dark). If you flip on
    Youth on Course, go mark a course as participating from its edit
    screen (Settings → Manage courses → tap a course) — the home tile
    should switch that course's price to "$5 or less," with your regular
-   price still reachable behind the "Details" button.
+   price still reachable behind the "Details" button. Tap the small `i`
+   button next to the Youth on Course toggle in Settings to confirm the
+   info sheet opens correctly.
 8. If you set a price and/or booking link on a course, confirm both show
    up on the home screen's hero tile, and that "Book" opens the link in
    a new tab.
@@ -609,5 +687,56 @@ coordinates to show anything useful.
    it should install with the golf-ball icon, open without browser chrome,
    and (after one normal visit while online) still open with airplane
    mode on.
-11. Everything from Stage 1 still applies: stats, settings, theme, and
+11. Tap around generally and confirm no translucent blue tap-highlight box
+   appears on any button/link, and that no button or settings row grows
+   unexpectedly tall or fails to register a tap.
+12. Everything from Stage 1 still applies: stats, settings, theme, and
    resuming a round after a refresh.
+
+## Recent UI polish pass
+
+A short pass addressing five reported issues, all now fixed:
+
+- **Settings icon centering** — the previous hand-drawn gear icon wasn't
+  actually symmetric. Every icon in the app (not just this one) now comes
+  from Google's official Material Symbols set instead of hand-drawn/
+  approximated paths — see "Icons" above.
+- **Hero tile text contrast** — `.hero-eyebrow`, `.hero-course`, and
+  `.hero-cta` used to reuse `--color-fairway`'s dark-theme green, which
+  sits too close in hue/lightness to real course satellite imagery
+  (grass, rough) to always read clearly. All hero tile text is now plain
+  bold white with a drop shadow, and the scrim behind it (`.tile--hero::before`)
+  was darkened slightly so text has a reliably dark base under it
+  regardless of the specific course photo.
+- **Blue tap-highlight box** — the browser's default
+  `-webkit-tap-highlight-color` was never suppressed, so every tap on a
+  link/button briefly flashed its own translucent-blue rectangle on top
+  of this app's own M3 state-layer/ripple treatment. Now suppressed
+  globally (`html` selector) and again on every interactive class, plus
+  `touch-action: manipulation` on the same set.
+- **Buttons/rows growing tall unexpectedly** — root cause was flex
+  children defaulting to `min-width: auto` (never shrinking below their
+  own content's natural width), which forced `.settings-row` and similar
+  rows to wrap and balloon vertically once a label + toggle + icon
+  couldn't all fit on one line. Fixed with `min-width: 0` on
+  `.settings-row-toggle > span` (the actual fix) plus `min-height` floors
+  on `.btn`, `.settings-row`, and `.track-shot-btn` as a stability
+  backstop. The tap-highlight/touch-action fix above also addresses taps
+  occasionally failing to register (removes the ~300ms tap-registration
+  delay some mobile browsers apply by default).
+- **Youth on Course info collapsed** — the always-visible explanatory
+  paragraph in Settings now lives behind a small circled-`i` button
+  (`.settings-row-info-btn`, `infoIcon()` in `js/icons.js`) that opens the
+  same bottom-sheet component already used elsewhere (course price
+  details, club picker) — see `openYocInfoSheet()` in
+  `js/views/settings.js`. The Youth on Course settings row is a `<div>`
+  instead of a `<label>` now that it contains a real `<button>` (a label
+  wrapping a button is invalid/unreliable — same reasoning already
+  documented for the hero tile's directions/booking buttons).
+
+Alongside this pass, every icon in the app was replaced with official
+Google Material Symbols paths (see "Icons" above), and several views'
+locally-duplicated icon functions (close, trash, chevron, up/down arrow,
+flag, crosshair) were consolidated into `js/icons.js` so there's exactly
+one definition of each, rather than each view carrying its own
+near-identical copy.

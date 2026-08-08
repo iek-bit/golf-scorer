@@ -68,19 +68,22 @@ export function weatherConditionLabel(condition) {
   return CONDITION_LABELS[condition] || 'Unknown';
 }
 
-// Small stroke-based icons (matching the directions button's style
-// elsewhere on the hero tile) rather than emoji, which render
-// inconsistently across platforms and fonts.
+// Official Google Material Symbols (Outlined, weight 400) paths — sunny,
+// cloud, rainy, weather_snowy — rather than emoji (inconsistent across
+// platforms/fonts) or hand-drawn icons. Kept local to this module (not in
+// icons.js) since this sun/cloud/rain/snow set is self-contained and only
+// used for weather condition badges, not reused elsewhere the way
+// icons.js's contents are.
 const CONDITION_ICONS = {
-  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
-  cloud: '<path d="M7 18a4 4 0 1 1 .6-7.96A5.5 5.5 0 0 1 18 12a3.5 3.5 0 0 1-.5 6.98H7Z"/>',
-  rain: '<path d="M7 15a4 4 0 1 1 .6-7.96A5.5 5.5 0 0 1 18 9a3.5 3.5 0 0 1-.5 6.98"/><path d="M8 19l-1 2M12 19l-1 2M16 19l-1 2"/>',
-  snow: '<path d="M7 15a4 4 0 1 1 .6-7.96A5.5 5.5 0 0 1 18 9a3.5 3.5 0 0 1-.5 6.98"/><path d="M9 19v3M9 19l-1.5 1M9 19l1.5 1M15 19v3M15 19l-1.5 1M15 19l1.5 1"/>',
+  sun: '<path d="M450-770v-150h60v150h-60Zm256 106-42-42 106-107 42 43-106 106Zm64 214v-60h150v60H770ZM450-40v-150h60v150h-60ZM253-665 148-770l42-42 106 106-43 41Zm518 517L664-254l41-41 108 104-42 43ZM40-450v-60h150v60H40Zm151 302-43-42 105-105 22 20 22 21-106 106Zm119-162q-70-70-70-170t70-170q70-70 170-70t170 70q70 70 70 170t-70 170q-70 70-170 70t-170-70Zm297.5-42.5Q660-405 660-480t-52.5-127.5Q555-660 480-660t-127.5 52.5Q300-555 300-480t52.5 127.5Q405-300 480-300t127.5-52.5ZM480-480Z"/>',
+  cloud: '<path d="M251-160q-88 0-149.5-61.5T40-371q0-78 50-137t127-71q20-97 94-158.5T482-799q112 0 189 81.5T748-522v24q72-2 122 46.5T920-329q0 69-50 119t-119 50H251Z"/>',
+  rain: '<path d="M558-83q-11 5-23.5 1T517-97l-69-138q-5-11-1.5-23.5T461-276q11-5 23.5-1t17.5 15l69 138q5 11 1.5 23.5T558-83Zm240-1q-11 5-23.5 1T757-98l-69-138q-5-11-1.5-23.5T701-277q11-5 23.5-1t17.5 15l69 138q5 11 1.5 23.5T798-84Zm-480 0q-11 5-23.5 1.5T277-97l-69-138q-5-11-1-23.5t15-17.5q11-5 23.5-1.5T263-263l69 139q5 11 1 23t-15 17Zm-28-256q-87 0-148.5-61.5T80-550q0-79 56.5-141T277-759q32-56 84.5-88.5T480-880q91 0 152.5 57.5T708-680q79 4 125.5 53.5T880-510q0 70-49.5 120T710-340H290Z"/>',
+  snow: '<path d="M231.5-221.64q-11.5-11.64-11.5-28.5t11.64-28.36q11.64-11.5 28.5-11.5t28.36 11.64q11.5 11.64 11.5 28.5t-11.64 28.36q-11.64 11.5-28.5 11.5t-28.36-11.64Zm120 130q-11.5-11.64-11.5-28.5t11.64-28.36q11.64-11.5 28.5-11.5t28.36 11.64q11.5 11.64 11.5 28.5T408.36-91.5Q396.72-80 379.86-80T351.5-91.64Zm120-130q-11.5-11.64-11.5-28.5t11.64-28.36q11.64-11.5 28.5-11.5t28.36 11.64q11.5 11.64 11.5 28.5t-11.64 28.36q-11.64 11.5-28.5 11.5t-28.36-11.64Zm240 0q-11.5-11.64-11.5-28.5t11.64-28.36q11.64-11.5 28.5-11.5t28.36 11.64q11.5 11.64 11.5 28.5t-11.64 28.36q-11.64 11.5-28.5 11.5t-28.36-11.64Zm-120 130q-11.5-11.64-11.5-28.5t11.64-28.36q11.64-11.5 28.5-11.5t28.36 11.64q11.5 11.64 11.5 28.5T648.36-91.5Q636.72-80 619.86-80T591.5-91.64ZM290-380q-86.86 0-148.43-61.52Q80-503.04 80-589.83 80-669 136.5-731 193-793 277-799q32-56 84.5-88.5T480.42-920q90.58 0 152.08 57.5Q694-805 708-720q79 4 125.5 53.5T880-550.38Q880-480 830.42-430 780.83-380 710-380H290Z"/>',
 };
 
 export function weatherIconSvg(condition, size = 16) {
   const paths = CONDITION_ICONS[condition] || CONDITION_ICONS.sun;
-  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 -960 960 960" fill="currentColor">${paths}</svg>`;
 }
 
 /**

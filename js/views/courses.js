@@ -3,7 +3,7 @@ import { makeCourse } from '../models.js';
 import { escapeHtml, formatPriceRange } from './home.js';
 import { getCurrentPosition } from '../geo.js';
 import { getCourseTees, getCourseDifficulty, getCourseDaylight } from '../api/opengolfapi.js';
-import { youthOnCourseIcon } from '../icons.js';
+import { youthOnCourseIcon, trashIcon } from '../icons.js';
 
 const MIN_PAR = 3;
 const MAX_PAR = 6;
@@ -43,16 +43,12 @@ function renderList(courses) {
           <span class="list-row-name">${escapeHtml(c.name)}</span>
           <span class="list-row-meta">${c.numHoles} holes · par ${c.holes.reduce((s, h) => s + h.par, 0)}${formatPriceMeta(c)}</span>
         </a>
-        <button type="button" class="icon-btn delete-course-btn" data-id="${c.id}" data-name="${escapeHtml(c.name)}" aria-label="Delete ${escapeHtml(c.name)}">${trashIcon()}</button>
+        <button type="button" class="icon-btn delete-course-btn" data-id="${c.id}" data-name="${escapeHtml(c.name)}" aria-label="Delete ${escapeHtml(c.name)}">${trashIcon(16)}</button>
       </li>
     `
       )
       .join('')}
   </ul>`;
-}
-
-function trashIcon() {
-  return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16Z"/></svg>`;
 }
 
 function formatPriceMeta(course) {

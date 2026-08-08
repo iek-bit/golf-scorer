@@ -7,7 +7,7 @@ import { SATELLITE_TILE_URL, SATELLITE_ATTRIBUTION } from '../mapConfig.js';
 import { ensureLocalCourse } from '../courseResolve.js';
 import { getCourseWeather, weatherIconSvg, weatherConditionLabel, degToCompass } from '../api/weather.js';
 import { statesContainingPoint } from '../usStates.js';
-import { youthOnCourseIcon, externalLinkIcon, chevronIcon } from '../icons.js';
+import { youthOnCourseIcon, externalLinkIcon, chevronIcon, closeIcon, navigationIcon } from '../icons.js';
 
 // Set once per renderHome() and read by the hero tile's price row — home.js's
 // other render functions are plain top-level functions keyed off the DOM
@@ -145,7 +145,7 @@ function openPriceDetailsSheet(course) {
       <div class="sheet-handle"></div>
       <div class="sheet-header">
         <span class="sheet-title">${escapeHtml(course.name)}</span>
-        <button type="button" class="icon-btn" id="price-details-close-btn" aria-label="Close">${closeIcon()}</button>
+        <button type="button" class="icon-btn" id="price-details-close-btn" aria-label="Close">${closeIcon(16)}</button>
       </div>
       ${
         showYoc
@@ -176,10 +176,6 @@ function onPriceSheetKeydown(e) {
 function closePriceDetailsSheet() {
   document.getElementById('price-details-scrim')?.remove();
   document.removeEventListener('keydown', onPriceSheetKeydown);
-}
-
-function closeIcon() {
-  return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>`;
 }
 
 function weatherBadgeHtml(weather) {
@@ -214,7 +210,7 @@ function directionsButtonHtml(location) {
   const url = `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`;
   return `
     <a class="directions-btn" href="${url}" target="_blank" rel="noopener" aria-label="Get directions" onclick="event.stopPropagation()">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+      ${navigationIcon(16)}
     </a>
   `;
 }

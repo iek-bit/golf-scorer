@@ -2,7 +2,7 @@ import { storage } from '../storage.js';
 import { getThemeMode, setThemeMode } from '../theme.js';
 import { getInstallState, promptInstall } from '../installPrompt.js';
 import { syncSegmentedThumb } from '../segmentedThumb.js';
-import { youthOnCourseIcon } from '../icons.js';
+import { youthOnCourseIcon, infoIcon, closeIcon, chevronIcon } from '../icons.js';
 
 export async function renderSettings(outlet) {
   const mode = await getThemeMode(); // null | 'light' | 'dark'
@@ -21,18 +21,12 @@ export async function renderSettings(outlet) {
 
       <div class="settings-group">
         <span class="settings-group-label">Youth on Course</span>
-        <label class="settings-row settings-row-toggle" id="yoc-row">
+        <div class="settings-row settings-row-toggle" id="yoc-row">
           <span class="settings-row-icon">${youthOnCourseIcon(20)}</span>
-          <span>
-            I'm a Youth on Course member
-            <span class="settings-row-subtext">Shows a badge and $5-or-less pricing on courses you've marked as participating</span>
-          </span>
+          <span>I'm a Youth on Course member</span>
+          <button type="button" class="settings-row-info-btn" id="yoc-info-btn" aria-label="What is Youth on Course?">${infoIcon(16)}</button>
           <span class="toggle-switch ${yocEnabled ? 'is-on' : ''}" id="yoc-toggle" role="switch" aria-checked="${yocEnabled}" tabindex="0"></span>
-        </label>
-        <p class="stats-note">
-          Youth on Course is a nonprofit that gets junior golfers on the course for $5 or less at partner courses.
-          Mark a course as participating from its edit screen — see <a class="text-link" href="https://youthoncourse.org" target="_blank" rel="noopener">youthoncourse.org</a> for the directory and membership details.
-        </p>
+        </div>
       </div>
 
       ${renderInstallGroup(getInstallState())}
@@ -41,11 +35,11 @@ export async function renderSettings(outlet) {
         <span class="settings-group-label">Data</span>
         <a class="settings-row" href="#/courses">
           <span>Manage courses</span>
-          <span class="settings-row-chevron">${chevronIcon()}</span>
+          <span class="settings-row-chevron">${chevronIcon(16)}</span>
         </a>
         <a class="settings-row" href="#/bags">
           <span>Manage bags</span>
-          <span class="settings-row-chevron">${chevronIcon()}</span>
+          <span class="settings-row-chevron">${chevronIcon(16)}</span>
         </a>
         <button type="button" class="settings-row" id="export-data-btn">
           <span>Export my data</span>
@@ -75,8 +69,14 @@ export async function renderSettings(outlet) {
     await storage.saveYouthOnCourseEnabled(!yocEnabled);
     renderSettings(outlet);
   };
+  // The row itself is a <div> (not a <label>) now that it contains a real
+  // <button> (the info button) — a <label> wrapping a <button> is the
+  // same invalid-nesting problem the hero tile's directions/booking
+  // buttons already had to work around (see home.js), so the row owns
+  // its own click handling instead. A tap on the info button specifically
+  // is excluded so asking "what is this?" never also flips the toggle.
   document.getElementById('yoc-row').addEventListener('click', (e) => {
-    e.preventDefault(); // it's a <label> with no real form control inside — own the click fully
+    if (e.target.closest('#yoc-info-btn')) return;
     handleYocToggle();
   });
   document.getElementById('yoc-toggle').addEventListener('keydown', (e) => {
@@ -84,6 +84,10 @@ export async function renderSettings(outlet) {
       e.preventDefault();
       handleYocToggle();
     }
+  });
+  document.getElementById('yoc-info-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openYocInfoSheet();
   });
 
   const installBtn = document.getElementById('install-app-btn');
@@ -139,6 +143,48 @@ export async function renderSettings(outlet) {
   });
 }
 
+// The old always-visible explanatory paragraph now lives behind the (i)
+// button instead of permanently taking up space in the Youth on Course
+// group — same bottom-sheet component the home tile's price "Details"
+// button and the play screen's club picker already use (see .sheet-*
+// classes in styles.css), so this doesn't introduce a new UI pattern.
+function openYocInfoSheet() {
+  closeYocInfoSheet();
+  const scrim = document.createElement('div');
+  scrim.className = 'sheet-scrim';
+  scrim.id = 'yoc-info-scrim';
+  scrim.innerHTML = `
+    <div class="sheet-panel">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <span class="sheet-title">Youth on Course</span>
+        <button type="button" class="icon-btn" id="yoc-info-close-btn" aria-label="Close">${closeIcon(16)}</button>
+      </div>
+      <p class="sheet-body-text">
+        Youth on Course is a nonprofit that gets junior golfers on the course for $5 or less at partner courses.
+        Mark a course as participating from its edit screen (Settings → Manage courses → tap a course).
+      </p>
+      <a class="text-link" href="https://youthoncourse.org" target="_blank" rel="noopener">youthoncourse.org →</a>
+    </div>
+  `;
+  document.body.appendChild(scrim);
+
+  scrim.addEventListener('click', (e) => {
+    if (e.target === scrim) closeYocInfoSheet();
+  });
+  document.getElementById('yoc-info-close-btn').addEventListener('click', closeYocInfoSheet);
+  document.addEventListener('keydown', onYocSheetKeydown);
+}
+
+function onYocSheetKeydown(e) {
+  if (e.key === 'Escape') closeYocInfoSheet();
+}
+
+function closeYocInfoSheet() {
+  document.getElementById('yoc-info-scrim')?.remove();
+  document.removeEventListener('keydown', onYocSheetKeydown);
+}
+
 function renderInstallGroup(installState) {
   if (installState.status === 'installed' || installState.status === 'unsupported') return '';
 
@@ -156,7 +202,7 @@ function renderInstallGroup(installState) {
       <span class="settings-group-label">App</span>
       <button type="button" class="settings-row" id="install-app-btn">
         <span>Install Fairway</span>
-        <span class="settings-row-chevron">${chevronIcon()}</span>
+        <span class="settings-row-chevron">${chevronIcon(16)}</span>
       </button>
     </div>
   `;
@@ -164,8 +210,4 @@ function renderInstallGroup(installState) {
 
 function segmentButton(group, mode, label, isActive) {
   return `<button type="button" class="segment-btn ${isActive ? 'is-active' : ''}" data-group="${group}" data-mode="${mode}">${label}</button>`;
-}
-
-function chevronIcon() {
-  return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>`;
 }

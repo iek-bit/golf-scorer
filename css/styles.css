@@ -153,6 +153,16 @@ body {
   height: 100%;
 }
 
+/* Fix: kills the browser's default translucent-blue tap-highlight
+   rectangle that used to flash over any tapped link/button/control on
+   touch devices — every interactive surface in this app already has its
+   own M3 state-layer treatment (see "State layers & ripple" below), so
+   the browser's own highlight was just a redundant, off-brand blue box
+   on top of it. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   margin: 0;
   background: var(--color-bg);
@@ -229,6 +239,14 @@ h2 {
    .m3-ripple span handles the animated press circle. Mouse-only (hover
    is meaningless on touch, and this app now runs on real pointer
    devices at tablet/desktop widths too).
+
+   -webkit-tap-highlight-color is repeated here (in addition to the
+   blanket `html` rule above) and touch-action: manipulation is added so
+   every one of these surfaces both (a) never shows the browser's own
+   blue tap box and (b) responds to a tap immediately, without the
+   ~300ms double-tap-zoom detection delay some mobile browsers still
+   apply to plain untagged elements — that delay was the most likely
+   cause of a tap sometimes seeming not to register at all.
    ============================================================ */
 
 .btn,
@@ -248,10 +266,13 @@ h2 {
 .club-chip,
 .club-row-summary,
 .hero-price-details-btn,
-.hero-book-btn {
+.hero-book-btn,
+.settings-row-info-btn {
   position: relative;
   isolation: isolate;
   overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .btn::after,
@@ -503,6 +524,8 @@ h2 {
   font-size: 16px;
   cursor: pointer;
   transition: transform 0.15s var(--ease-standard);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .icon-btn:active {
@@ -571,6 +594,14 @@ h2 {
   letter-spacing: 0.01em;
   cursor: pointer;
   transition: transform 0.12s var(--ease-standard), opacity 0.12s var(--ease-standard);
+  /* Fix: a stable minimum height for every button regardless of what's
+     inside it (an icon + long label, a wrapping edge case at narrow
+     widths, etc.) — without this, a button whose content happens to
+     wrap onto two lines would grow tall unpredictably instead of eliding
+     or staying single-line, which is the "buttons suddenly get a lot
+     taller" bug. */
+  min-height: 44px;
+  line-height: 1.2;
 }
 
 .btn:active {
@@ -641,13 +672,20 @@ h2 {
   z-index: 1;
 }
 
+/* Fix: the scrim under the hero text was letting real satellite grass
+   green show through enough to fight with the (previously also green)
+   CTA text below. Darkened the lower two stops so text always sits on a
+   solidly dark base regardless of the course's own imagery — combined
+   with the text staying plain white + a drop shadow (see .hero-eyebrow /
+   .hero-course / .hero-cta below), rather than trying to pick a new
+   accent color that might itself clash with some other course's photo. */
 .tile--hero::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: 2;
-  background-image: linear-gradient(180deg, rgba(14, 23, 18, 0.1) 0%, rgba(14, 23, 18, 0.35) 55%, rgba(14, 23, 18, 0.85) 100%),
-    radial-gradient(circle at 78% 22%, rgba(141, 213, 179, 0.25), transparent 45%),
+  background-image: linear-gradient(180deg, rgba(14, 23, 18, 0.18) 0%, rgba(14, 23, 18, 0.52) 55%, rgba(14, 23, 18, 0.92) 100%),
+    radial-gradient(circle at 78% 22%, rgba(141, 213, 179, 0.18), transparent 45%),
     repeating-linear-gradient(120deg, rgba(255, 255, 255, 0.03) 0px, rgba(255, 255, 255, 0.03) 2px, transparent 2px, transparent 26px);
 }
 
@@ -705,10 +743,12 @@ h2 {
 .hero-eyebrow {
   position: relative;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700; /* bumped from 500 — bolder white reads more clearly over photo than a lighter weight, per the contrast fix */
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  opacity: 0.8;
+  color: #ffffff;
+  opacity: 0.92;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 .hero-course {
@@ -716,8 +756,10 @@ h2 {
   font-family: var(--font-display);
   font-size: 24px;
   line-height: 32px;
-  font-weight: 600; /* M3 Headline Small, weighted up for legibility over a photo */
+  font-weight: 700; /* bumped from 600 for the same reason */
   margin: 2px 0 0;
+  color: #ffffff;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.6);
 }
 
 .hero-price-row {
@@ -735,7 +777,8 @@ h2 {
   gap: 4px;
   font-size: 13px;
   font-weight: 700;
-  color: #f4f3ec;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .hero-price--yoc {
@@ -757,11 +800,17 @@ h2 {
   cursor: pointer;
 }
 
+/* Fix: was --color-fairway-container's dark-theme green (#8dd5b3), which
+   sits close in hue/lightness to a lot of real fairway/rough satellite
+   imagery. Now plain bold white with a drop shadow, matching the rest
+   of the hero tile's text treatment above instead of standing out as
+   its own (previously low-contrast) accent color. */
 .hero-cta {
   position: relative;
   font-size: 13px;
   font-weight: 700;
-  color: #8dd5b3;
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 /* --- Tile 2: stats summary --- */
@@ -875,8 +924,8 @@ h2 {
 
 /* ============================================================
    Bottom sheet (shared: club picker in views/play.js, price details
-   in views/home.js) — a scrim + a panel that slides up from the
-   bottom edge, top corners only.
+   and YOC info in views/home.js / views/settings.js) — a scrim + a
+   panel that slides up from the bottom edge, top corners only.
    ============================================================ */
 
 .sheet-scrim,
@@ -941,6 +990,13 @@ h2 {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 17px;
+}
+
+.sheet-body-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-ink-muted);
 }
 
 .price-details-row {
@@ -1065,6 +1121,45 @@ h2 {
    tighter-padding override, not a race against source order. */
 .list-row.club-row {
   padding: 10px 14px;
+  gap: 4px;
+}
+
+/* Drag-to-reorder handle (js/views/bags.js) — a dedicated grip target so
+   a drag only ever starts from this specific spot, on either input type:
+   mousedown here begins dragging immediately on desktop; on touch, a
+   short hold is required first (see the JS) so an accidental touch here
+   while scrolling the page doesn't get mistaken for a reorder. */
+.club-drag-handle {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: var(--color-ink-muted);
+  cursor: grab;
+  touch-action: none; /* this handle owns vertical touch gestures once a drag begins — never hands them to page scroll */
+}
+
+.club-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Applied to the whole .club-card while it's actively being dragged —
+   lifted above its siblings with a stronger shadow so it visually reads
+   as "picked up," and its own tap/hover state-layer treatment is
+   suspended (pointer-events: none) so the drag itself is the only thing
+   happening on this element while it's in motion. */
+.club-card.is-dragging {
+  position: relative;
+  z-index: 5;
+  box-shadow: var(--elevation-4);
+  transition: none; /* the JS drives transform directly, every frame — a CSS transition here would fight it and lag behind the pointer */
+}
+
+.club-card.is-dragging .club-row {
+  pointer-events: none;
 }
 
 .club-card {
@@ -1816,6 +1911,15 @@ h2 {
   font-weight: 600;
   cursor: pointer;
   text-align: left;
+  /* Fix: a stable minimum row height regardless of content — the actual
+     cause of rows occasionally growing much taller than expected was a
+     flex child with text refusing to shrink below its own natural
+     content width (flex's default min-width: auto), which forced the
+     row to wrap and balloon vertically instead of eliding. See
+     .settings-row-toggle > span below for the real fix; this min-height
+     is just a floor so the row never reads as unstable even if some
+     future content is longer than expected. */
+  min-height: 52px;
 }
 
 .settings-row-icon {
@@ -1840,9 +1944,19 @@ h2 {
   cursor: pointer;
 }
 
+/* Fix: min-width: 0 is the actual fix for rows growing tall. A flex
+   child's default min-width is `auto`, which means "never shrink below
+   my content's natural width" — so a row containing this label plus a
+   toggle/info-button plus an icon, once the row's available width can't
+   fit all of that on one line, was forced to wrap text and grow tall
+   rather than truncate/wrap gracefully within its own column. Setting
+   min-width: 0 lets this element actually shrink to the space it's
+   given, which is what allows text inside it to wrap within its own
+   column (or truncate) instead of blowing out the row's height. */
 .settings-row-toggle > span:not(.settings-row-icon):not(.toggle-switch) {
   display: flex;
   flex: 1;
+  min-width: 0;
   flex-direction: column;
   gap: 2px;
 }
@@ -1851,11 +1965,32 @@ h2 {
   font-size: 12px;
   font-weight: 500;
   color: var(--color-ink-muted);
+  line-height: 1.4;
+}
+
+/* A small circled-i button living inline in a settings row (e.g. next to
+   the Youth on Course toggle) — same visual language as the club
+   picker's "?" help button (.club-picker-help-btn below) so both read as
+   the same "tap for more info" affordance rather than two different
+   button styles for the same job. flex-shrink: 0 keeps it from being
+   compressed by a long label sharing the row. */
+.settings-row-info-btn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--shape-full);
+  border: 1px solid var(--color-outline);
+  background: transparent;
+  color: var(--color-ink-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
 }
 
 /* M3 Switch: an outlined track (unfilled state shows the outline +
    small dot so "off" reads as a deliberate state, not a broken
-   control), filled with primary + a larger thumb once on. */
+   control), filled with primary + a larger thumb once on. flex-shrink:0
+   keeps its size stable no matter what else is in the row. */
 .toggle-switch {
   position: relative;
   width: 44px;
@@ -2102,6 +2237,7 @@ h2 {
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.12s var(--ease-standard), background-color 0.15s var(--ease-standard);
+  min-height: 48px;
 }
 
 .track-shot-btn:active {

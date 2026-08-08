@@ -3,6 +3,7 @@ import { computeStats, computeClubStats } from '../stats.js';
 import { toParText, escapeHtml, totalForRound } from './home.js';
 import { weatherIconSvg, weatherConditionLabel } from '../api/weather.js';
 import { syncSegmentedThumb } from '../segmentedThumb.js';
+import { trashIcon } from '../icons.js';
 
 const WEATHER_FILTERS = ['sun', 'cloud', 'rain', 'snow'];
 
@@ -226,13 +227,9 @@ function renderRoundRow(round, courses) {
           <span class="score-topar">${toParText(totals.toPar)}</span>
         </span>
       </a>
-      <button type="button" class="icon-btn delete-round-btn" data-id="${round.id}" aria-label="Delete round">${trashIcon()}</button>
+      <button type="button" class="icon-btn delete-round-btn" data-id="${round.id}" aria-label="Delete round">${trashIcon(16)}</button>
     </li>
   `;
-}
-
-function trashIcon() {
-  return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16Z"/></svg>`;
 }
 
 function round1(n) {
