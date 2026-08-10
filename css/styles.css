@@ -1999,6 +1999,7 @@ h2 {
   border-radius: var(--shape-full);
   background: var(--color-surface-highest);
   border: 2px solid var(--color-outline);
+  overflow: hidden; /* clips the spawned press ripple (js/ripple.js) to the pill shape, now that .toggle-switch is a ripple target in its own right rather than the click bubbling up to the whole row */
   transition: background-color 0.18s var(--ease-standard), border-color 0.18s var(--ease-standard);
 }
 

@@ -6,7 +6,7 @@ import { youthOnCourseIcon, infoIcon, closeIcon, chevronIcon } from '../icons.js
 
 export async function renderSettings(outlet) {
   const mode = await getThemeMode(); // null | 'light' | 'dark'
-  const yocEnabled = await storage.getYouthOnCourseEnabled();
+  let yocEnabled = await storage.getYouthOnCourseEnabled();
 
   outlet.innerHTML = `
     <section class="panel">
@@ -65,9 +65,23 @@ export async function renderSettings(outlet) {
     renderSettings(outlet);
   });
 
-  const handleYocToggle = async () => {
-    await storage.saveYouthOnCourseEnabled(!yocEnabled);
-    renderSettings(outlet);
+  // Updates the toggle in place — a full renderSettings(outlet) here would
+  // tear down and rebuild the ENTIRE screen just to flip one boolean,
+  // which is both wasteful and visibly rough: the toggle-switch element
+  // gets destroyed and recreated instead of smoothly sliding, and any
+  // in-flight press ripple on it gets yanked out of the DOM mid-animation
+  // rather than finishing and fading out on its own. Persisting the
+  // change to storage still happens (fire-and-forget is fine here — this
+  // is a simple boolean flag, not data anything else on screen depends
+  // on mid-flight), but the UI itself updates locally, the same way the
+  // equivalent Youth on Course toggle on the course-edit form already
+  // does (see js/views/courses.js).
+  const yocToggleEl = document.getElementById('yoc-toggle');
+  const handleYocToggle = () => {
+    yocEnabled = !yocEnabled;
+    yocToggleEl.classList.toggle('is-on', yocEnabled);
+    yocToggleEl.setAttribute('aria-checked', String(yocEnabled));
+    storage.saveYouthOnCourseEnabled(yocEnabled);
   };
   // The row itself is a <div> (not a <label>) now that it contains a real
   // <button> (the info button) — a <label> wrapping a <button> is the
@@ -79,7 +93,7 @@ export async function renderSettings(outlet) {
     if (e.target.closest('#yoc-info-btn')) return;
     handleYocToggle();
   });
-  document.getElementById('yoc-toggle').addEventListener('keydown', (e) => {
+  yocToggleEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       handleYocToggle();

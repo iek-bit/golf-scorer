@@ -740,3 +740,33 @@ locally-duplicated icon functions (close, trash, chevron, up/down arrow,
 flag, crosshair) were consolidated into `js/icons.js` so there's exactly
 one definition of each, rather than each view carrying its own
 near-identical copy.
+
+## Toggle press feedback & the Youth on Course toggle's re-render
+
+Two related follow-up fixes, both traced to actual recordings of the bug:
+
+- **Press ripple was hitting the wrong element.** `.toggle-switch` and
+  `.settings-row-info-btn` were never added to `js/ripple.js`'s
+  `RIPPLE_SELECTOR` list, so a press on either one bubbled up through
+  `element.closest()` and spawned its ripple against the entire
+  `.settings-row` instead — a large, hard-edged, wrongly-clipped
+  rectangle flashing across most of the row instead of a small contained
+  circle under the actual control (this is what looked like a button
+  suddenly "expanding" on tap). Both are now in `RIPPLE_SELECTOR`, and
+  `.toggle-switch` gained `overflow: hidden` so its own ripple clips to
+  the pill shape rather than spilling out. `.settings-row-info-btn`
+  already had the needed `overflow: hidden` from the shared state-layer
+  rule.
+- **The Youth on Course toggle was re-rendering the entire Settings
+  screen on every click.** `renderSettings(outlet)` rebuilt the whole
+  panel from scratch just to flip one boolean — destroying and
+  recreating the toggle-switch element (instead of letting it smoothly
+  slide via its own CSS transition) and yanking any in-flight ripple out
+  of the DOM mid-animation before it could finish and fade out. Fixed by
+  updating the toggle's class/`aria-checked` directly and persisting in
+  the background, the same local-update pattern the course-edit form's
+  own Youth on Course toggle already used (`js/views/courses.js`) —
+  nothing else on the Settings screen depends on this value, so there
+  was never a reason to rebuild anything else. (Stats' "Ignore outliers"
+  toggle keeps its full re-render deliberately — unlike this one, its
+  state actually changes numbers displayed elsewhere on the same screen.)

@@ -6,7 +6,7 @@
 // this listener attaches (delegation, not per-element binding).
 
 const RIPPLE_SELECTOR =
-  '.btn, .tile, .icon-btn, .segment-btn, .settings-row, .course-card, .score-row, .list-row, .strip-cell, .stepper-btn, .par-confirm-btn, .track-shot-btn, .text-btn, .fab, .nav-rail-item, .club-chip, .club-row-summary';
+  '.btn, .tile, .icon-btn, .segment-btn, .settings-row, .course-card, .score-row, .list-row, .strip-cell, .stepper-btn, .par-confirm-btn, .track-shot-btn, .text-btn, .fab, .nav-rail-item, .club-chip, .club-row-summary, .toggle-switch, .settings-row-info-btn';
 
 export function initRipple() {
   document.addEventListener('pointerdown', (e) => {
